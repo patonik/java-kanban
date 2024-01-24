@@ -117,6 +117,17 @@ public class Manager {
     }
 
     public void deleteSubtaskById(String id) {
+        Epic parent = subtasks.get(id).getEpic();
+        List<Subtask> epicSubTasks = parent.getSubtasks();
+        Subtask previous = null;
+        for (Subtask sub : epicSubTasks) {
+            if (sub.getId().equals(id)) {
+                previous = sub;
+            }
+        }
+        if(previous != null) {
+            epicSubTasks.remove(previous);
+        }
         subtasks.remove(id);
     }
 
