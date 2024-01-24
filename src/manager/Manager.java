@@ -104,13 +104,7 @@ public class Manager {
     }
 
     public List<Subtask> getSubtasksOfEpic(Epic epic) {
-        List<Subtask> epicSubtasks = new ArrayList<>();
-        for (Subtask subtask : subtasks.values()) {
-            if (subtask.getEpic().equals(epic)) {
-                epicSubtasks.add(subtask);
-            }
-        }
-        return epicSubtasks;
+        return new ArrayList<>(epic.getSubtasks());
     }
     public void deleteAllTasks(){
         tasks.clear();
