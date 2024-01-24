@@ -110,6 +110,9 @@ public class Manager {
     }
 
     public void deleteEpicById(String id) {
+        for (Subtask subtask : epics.get(id).getSubtasks()) {
+            subtasks.remove(subtask.getId());
+        }
         epics.remove(id);
     }
 
