@@ -7,18 +7,15 @@ import task.Task;
 import java.util.*;
 
 public class Manager {
-    private final Map<String, Task> tasks;
-    private final Map<String, Epic> epics;
-    private final Map<String, Subtask> subtasks;
+    private final Map<String, Task> tasks = new HashMap<>();
+    private final Map<String, Epic> epics = new HashMap<>();
+    private final Map<String, Subtask> subtasks = new HashMap<>();
     private final static char[] RANGE = new char[]{33, 127};
     private final char[] valueCounter;
     boolean idOverflow;
 
     public Manager() {
         this.idOverflow = false;
-        this.tasks = new HashMap<>();
-        this.epics = new HashMap<>();
-        this.subtasks = new HashMap<>();
         this.valueCounter = new char[RANGE[1] - RANGE[0]];
         Arrays.fill(valueCounter, RANGE[0]);
     }
