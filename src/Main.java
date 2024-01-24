@@ -1,9 +1,16 @@
+import manager.Manager;
+import manager.Manager.IdGeneratorOverflow;
+import task.Epic;
+import task.Status;
+import task.Subtask;
+import task.Task;
+
 public class Main {
     public static void main(String[] args) {
         Manager manager = new Manager();
         try {
-            manager.createTask(new Task("newTask", "description of the new Task", manager.generateId()));
-            manager.createEpic(new Epic("newEpic", "description of the new Epic", manager.generateId()));
+            manager.createTask(new Task("newTask", "description of the new task.Task", manager.generateId()));
+            manager.createEpic(new Epic("newEpic", "description of the new task.Epic", manager.generateId()));
             manager.createSubtask(
                     new Subtask(
                             "newSubTask",
@@ -12,7 +19,7 @@ public class Main {
                             manager.getAllEpics().get(0)
                     )
             );
-        } catch (Manager.IdGeneratorOverflow e) {
+        } catch (IdGeneratorOverflow e) {
             throw new RuntimeException(e);
         }
         System.out.println(manager.getAllTasks());

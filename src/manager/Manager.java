@@ -1,6 +1,12 @@
+package manager;
+
+import task.Epic;
+import task.Subtask;
+import task.Task;
+
 import java.util.*;
 
-class Manager {
+public class Manager {
     private final Map<String, Task> tasks;
     private final Map<String, Epic> epics;
     private final Map<String, Subtask> subtasks;
@@ -107,7 +113,7 @@ class Manager {
         return epicSubtasks;
     }
 
-    static class IdGeneratorOverflow extends Exception {
+    public static class IdGeneratorOverflow extends Exception {
 
     }
 }
