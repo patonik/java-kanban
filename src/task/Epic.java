@@ -38,7 +38,7 @@ public class Epic extends Task {
 
     @Override
     public void setStatus(Status status) {
-        if(this.isCompleted()) {
+        if(this.isCompleted() || status.equals(Status.NEW) || status.equals(Status.IN_PROGRESS)) {
             super.setStatus(status);
         }
     }

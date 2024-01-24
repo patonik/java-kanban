@@ -1,6 +1,7 @@
 package manager;
 
 import task.Epic;
+import task.Status;
 import task.Subtask;
 import task.Task;
 
@@ -85,6 +86,22 @@ public class Manager {
     }
 
     public void updateSubtask(Subtask subtask) {
+        Epic parent = subtask.getEpic();
+        List<Subtask> epicSubTasks = parent.getSubtasks();
+        Subtask previous = null;
+        for (Subtask sub : epicSubTasks) {
+            if (sub.getId().equals(subtask.getId())) {
+                previous = sub;
+            }
+        }
+        if(previous != null) {
+            epicSubTasks.remove(previous);
+            Status subStatus = subtask.getStatus();
+            if(!previous.getStatus().equals(subStatus)) {
+                parent.setStatus(subStatus);
+            }
+        }
+        epicSubTasks.add(subtask);
         subtasks.put(subtask.getId(), subtask);
     }
 
