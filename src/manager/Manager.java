@@ -112,7 +112,19 @@ public class Manager {
         }
         return epicSubtasks;
     }
-
+    public void deleteAllTasks(){
+        tasks.clear();
+    }
+    public void deleteAllEpics(){
+        deleteAllSubTasks();
+        epics.clear();
+    }
+    public void deleteAllSubTasks(){
+        for (String s : epics.keySet()) {
+            epics.get(s).getSubtasks().clear();
+        }
+        subtasks.clear();
+    }
     public static class IdGeneratorOverflow extends Exception {
 
     }
