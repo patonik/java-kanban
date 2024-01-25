@@ -1,0 +1,42 @@
+<tasks>
+    <task>
+        <title>Establish Base Camp</title>
+        <description>Secure the initial location for survival</description>
+        <status>IN PROGRESS</status>
+        <subtasks>
+            <task>
+                <title>Secure Perimeter</title>
+                <description>Strengthen the defense of the base</description>
+                <status>IN PROGRESS</status>
+            </task>
+            <task>
+                <title>Set Up Communication Center</title>
+                <description>Establish a communication hub for coordination</description>
+                <status>IN PROGRESS</status>
+            </task>
+        </subtasks>
+    </task>
+    <task>
+        <title>Gather Supplies</title>
+        <description>Collect essential resources for survival</description>
+        <status>NEW</status>
+        <subtasks>
+            <task>
+                <title>Scavenge for Food</title>
+                <description>Search for food sources in the surrounding area</description>
+                <status>NEW</status>
+            </task>
+            <task>
+                <title>Collect Medical Supplies</title>
+                <description>Gather medical resources for emergencies</description>
+                <status>NEW</status>
+            </task>
+        </subtasks>
+    </task>
+
+    <task>
+        <title>Secure Resources</title>
+        <description>Ensure a sustainable supply of water and other essentials</description>
+        <status>NEW</status>
+    </task>
+</tasks>

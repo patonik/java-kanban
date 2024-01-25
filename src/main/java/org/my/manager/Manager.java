@@ -1,9 +1,9 @@
-package manager;
+package org.my.manager;
 
-import task.Epic;
-import task.Status;
-import task.Subtask;
-import task.Task;
+import org.my.task.Epic;
+import org.my.task.Status;
+import org.my.task.Subtask;
+import org.my.task.Task;
 
 import java.util.*;
 
@@ -75,6 +75,7 @@ public class Manager {
 
     public void createSubtask(Subtask subtask) {
         subtasks.put(subtask.getId(), subtask);
+        subtask.getEpic().getSubtasks().add(subtask);
     }
 
     public void updateTask(Task task) {
@@ -85,6 +86,7 @@ public class Manager {
         epics.put(epic.getId(), epic);
     }
 
+    /**awfully intertwined with {@link Epic#setStatus(Status)}*/
     public void updateSubtask(Subtask subtask) {
         Epic parent = subtask.getEpic();
         List<Subtask> epicSubTasks = parent.getSubtasks();
@@ -92,18 +94,20 @@ public class Manager {
         for (Subtask sub : epicSubTasks) {
             if (sub.getId().equals(subtask.getId())) {
                 previous = sub;
+                break;
             }
         }
-        if(previous != null) {
+        if(previous != null && previous != subtask) {
             epicSubTasks.remove(previous);
+            epicSubTasks.add(subtask);
+            subtasks.put(subtask.getId(), subtask);
             Status subStatus = subtask.getStatus();
             if(!previous.getStatus().equals(subStatus)) {
                 parent.setStatus(subStatus);
             }
         }
-        epicSubTasks.add(subtask);
-        subtasks.put(subtask.getId(), subtask);
     }
+
 
     public void deleteTaskById(String id) {
         tasks.remove(id);

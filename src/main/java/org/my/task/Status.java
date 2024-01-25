@@ -1,4 +1,4 @@
-package task;
+package org.my.task;
 
 public enum Status {
         NEW,
