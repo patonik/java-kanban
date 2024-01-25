@@ -8,7 +8,6 @@ import org.my.task.Subtask;
 import org.my.task.Task;
 
 import java.util.List;
-import java.util.Objects;
 
 class ManagerTest implements TestInputValues {
     Manager manager;
@@ -172,7 +171,7 @@ class ManagerTest implements TestInputValues {
         for (Subtask sub : subs) {
             if(sub.equals(newSub)) {
                 Assertions.assertEquals(newSub.getStatus(), sub.getStatus());
-            };
+            }
         }
         //subtask's epic status changed
         Assertions.assertEquals(newSub.getStatus(), manager.getSubtaskById(existingFirstSubId).getEpic().getStatus());
@@ -190,7 +189,7 @@ class ManagerTest implements TestInputValues {
         for (Subtask sub : subs) {
             if(sub.equals(newSub)) {
                 Assertions.assertEquals(newSub.getStatus(), sub.getStatus());
-            };
+            }
         }
         //subtask's epic status changed
         Assertions.assertEquals(Status.IN_PROGRESS, manager.getSubtaskById(existingSecondSubId).getEpic().getStatus());
@@ -207,7 +206,7 @@ class ManagerTest implements TestInputValues {
     }
 
     @Test
-    void deleteEpicById() throws Manager.IdGeneratorOverflow {
+    void deleteEpicById() {
         manager.deleteEpicById(existingEpicId);
         Assertions.assertNull(manager.getEpicById(existingEpicId));
         Assertions.assertNull(manager.getSubtaskById(existingSecondSubId));
