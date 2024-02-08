@@ -5,7 +5,6 @@ import org.my.task.Subtask;
 import org.my.task.Task;
 
 import java.util.List;
-import java.util.Queue;
 
 public interface TaskManager {
     List<Task> getAllTasks();

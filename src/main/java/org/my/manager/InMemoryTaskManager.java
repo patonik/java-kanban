@@ -11,7 +11,8 @@ public class InMemoryTaskManager implements TaskManager {
     private final Map<String, Task> tasks = new HashMap<>();
     private final Map<String, Epic> epics = new HashMap<>();
     private final Map<String, Subtask> subtasks = new HashMap<>();
-    private final Queue<Task> history = new LinkedList<>();
+    private final HistoryManager historyManager;
+
     private final static char[] RANGE = new char[]{33, 127};
     private final char[] valueCounter;
     boolean idOverflow;
@@ -20,15 +21,7 @@ public class InMemoryTaskManager implements TaskManager {
         this.idOverflow = false;
         this.valueCounter = new char[RANGE[1] - RANGE[0]];
         Arrays.fill(valueCounter, RANGE[0]);
-    }
-
-    private void saveHistory(Task task){
-        if(task == null) return;
-        int size = history.size();
-        if (size >= 10) {
-            history.remove();
-        }
-        history.add(task);
+        this.historyManager = Managers.getDefaultHistory();
     }
 
     public String generateId() throws IdGeneratorOverflow {
@@ -69,21 +62,21 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public Task getTaskById(String id) {
         Task task = tasks.get(id);
-        saveHistory(task);
+        historyManager.addTask(task);
         return task;
     }
 
     @Override
     public Epic getEpicById(String id) {
         Epic epic = epics.get(id);
-        saveHistory(epic);
+        historyManager.addTask(epic);
         return epic;
     }
 
     @Override
     public Subtask getSubtaskById(String id) {
         Subtask task = subtasks.get(id);
-        saveHistory(task);
+        historyManager.addTask(task);
         return task;
     }
 
@@ -188,7 +181,7 @@ public class InMemoryTaskManager implements TaskManager {
     }
     @Override
     public List<? extends Task> getHistory() {
-        return new ArrayList<>(history);
+        return historyManager.getHistory();
     }
 
     public static class IdGeneratorOverflow extends Exception {
