@@ -1,6 +1,6 @@
 package org.my.task;
 
-import org.my.manager.Manager;
+import org.my.manager.InMemoryTaskManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +40,7 @@ public class Epic extends Task {
         return true;
     }
 
-    /**awfully intertwined with {@link Manager#updateSubtask(Subtask)}*/
+    /**awfully intertwined with {@link InMemoryTaskManager#updateSubtask(Subtask)}*/
     @Override
     public void setStatus(Status status) {
         switch (status){
