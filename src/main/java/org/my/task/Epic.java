@@ -1,12 +1,11 @@
 package org.my.task;
 
-import org.my.manager.InMemoryTaskManager;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class Epic extends Task {
-    private final List<Subtask> subtasks;
+    private List<Subtask> subtasks;
 
     public Epic(String title, String description, String id) {
         super(title, description, id);
@@ -40,35 +39,31 @@ public class Epic extends Task {
         return true;
     }
 
-    /**awfully intertwined with {@link InMemoryTaskManager#updateSubtask(Subtask)}*/
-    @Override
-    public void setStatus(Status status) {
-        switch (status){
-            case NEW -> {
-                if (this.isNew()) {
-                    super.setStatus(status);
-                } else {
-                    super.setStatus(Status.IN_PROGRESS);
-                }
-            }
-            case IN_PROGRESS -> {
-                if (isActive()) {
-                    super.setStatus(status);
-                }
-            }
-            case DONE -> {
-                if (isCompleted()) {
-                    super.setStatus(status);
-                }
-            }
-        }
-    }
-
-
     @Override
     public String toString() {
         return "task.Epic{" +
                 "subtasks=" + subtasks +
                 "} " + super.toString();
+    }
+
+    @Override
+    public Task clone() {
+        Epic clone = (Epic) super.clone();
+        clone.subtasks = new ArrayList<>();
+        subtasks.forEach(x -> clone.subtasks.add((Subtask) x.clone()));
+        return clone;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Epic epic)) return false;
+        if (!super.equals(o)) return false;
+        return Objects.equals(getSubtasks(), epic.getSubtasks());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), getSubtasks());
     }
 }

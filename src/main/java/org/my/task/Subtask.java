@@ -1,21 +1,41 @@
 package org.my.task;
 
-public class Subtask extends Task {
-    private final Epic epic;
+import java.util.Objects;
 
-    public Subtask(String title, String description, String id, Epic epic) {
+public class Subtask extends Task {
+    private final String epicId;
+
+    public Subtask(String title, String description, String id, String epicId) {
         super(title, description, id);
-        this.epic = epic;
+        this.epicId = epicId;
     }
 
-    public Epic getEpic() {
-        return epic;
+    public String getEpicId() {
+        return epicId;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Subtask subtask)) return false;
+        if (!super.equals(o)) return false;
+        return Objects.equals(getEpicId(), subtask.getEpicId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), getEpicId());
     }
 
     @Override
     public String toString() {
         return "task.Subtask{" +
-                "epic=" + epic.getId() +
+                "epic=" + getEpicId() +
                 "} " + super.toString();
+    }
+
+    @Override
+    public Task clone() {
+        return super.clone();
     }
 }

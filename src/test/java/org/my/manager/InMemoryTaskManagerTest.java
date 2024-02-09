@@ -17,29 +17,29 @@ class InMemoryTaskManagerTest implements TestInputValues {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        inMemoryTaskManager = new InMemoryTaskManager();
+        inMemoryTaskManager = (InMemoryTaskManager) Managers.getDefault();
         try {
             existingEpicId = inMemoryTaskManager.generateId();
             inMemoryTaskManager.createEpic(
                     new Epic(
-                            LEVEL_1_NAMES.get(0),
-                            LEVEL_1_DESCRIPTIONS.get(0),
+                            LEVEL_1_NAMES.getFirst(),
+                            LEVEL_1_DESCRIPTIONS.getFirst(),
                             existingEpicId)
             );
             inMemoryTaskManager.createSubtask(
                     new Subtask(
-                            LEVEL_2_NAMES.get(0).get(0),
-                            LEVEL_2_DESCRIPTIONS.get(0).get(0),
+                            LEVEL_2_NAMES.getFirst().getFirst(),
+                            LEVEL_2_DESCRIPTIONS.getFirst().getFirst(),
                             existingFirstSubId = inMemoryTaskManager.generateId(),
-                            inMemoryTaskManager.getEpicById(existingEpicId)
+                            existingEpicId
                     )
             );
             inMemoryTaskManager.createSubtask(
                     new Subtask(
-                            LEVEL_2_NAMES.get(0).get(1),
-                            LEVEL_2_DESCRIPTIONS.get(0).get(1),
+                            LEVEL_2_NAMES.getFirst().get(1),
+                            LEVEL_2_DESCRIPTIONS.getFirst().get(1),
                             existingSecondSubId = inMemoryTaskManager.generateId(),
-                            inMemoryTaskManager.getEpicById(existingEpicId)
+                            existingEpicId
                     )
             );
         } catch (InMemoryTaskManager.IdGeneratorOverflow e) {
@@ -48,9 +48,13 @@ class InMemoryTaskManagerTest implements TestInputValues {
     }
 
     @Test
-    void getAllTasks() {
+    void getAllTasks() throws InMemoryTaskManager.IdGeneratorOverflow {
         List<Task> taskList = inMemoryTaskManager.getAllTasks();
         Assertions.assertTrue(taskList.isEmpty());
+        String taskId = inMemoryTaskManager.generateId();
+        inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId));
+        taskList = inMemoryTaskManager.getAllTasks();
+        Assertions.assertFalse(taskList.isEmpty());
     }
 
     @Test
@@ -81,8 +85,8 @@ class InMemoryTaskManagerTest implements TestInputValues {
 
     @Test
     void getSubtaskById() {
-        Assertions.assertEquals(existingFirstSubId, inMemoryTaskManager.getTaskById(existingFirstSubId).getId());
-        Assertions.assertEquals(existingSecondSubId, inMemoryTaskManager.getTaskById(existingSecondSubId).getId());
+        Assertions.assertEquals(existingFirstSubId, inMemoryTaskManager.getSubtaskById(existingFirstSubId).getId());
+        Assertions.assertEquals(existingSecondSubId, inMemoryTaskManager.getSubtaskById(existingSecondSubId).getId());
     }
 
     @Test
@@ -110,7 +114,7 @@ class InMemoryTaskManagerTest implements TestInputValues {
                         LEVEL_2_NAMES.get(1).get(0),
                         LEVEL_2_DESCRIPTIONS.get(1).get(0),
                         sub1Id,
-                        inMemoryTaskManager.getEpicById(epicId)
+                        epicId
                 )
         );
         String sub2Id = inMemoryTaskManager.generateId();
@@ -119,7 +123,7 @@ class InMemoryTaskManagerTest implements TestInputValues {
                         LEVEL_2_NAMES.get(1).get(1),
                         LEVEL_2_DESCRIPTIONS.get(1).get(1),
                         sub2Id,
-                        inMemoryTaskManager.getEpicById(epicId)
+                        epicId
                 )
         );
         Assertions.assertEquals(sub1Id, inMemoryTaskManager.getSubtaskById(sub1Id).getId());
@@ -133,7 +137,6 @@ class InMemoryTaskManagerTest implements TestInputValues {
         String taskId = inMemoryTaskManager.generateId();
         Task task = new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId);
         inMemoryTaskManager.createTask(task);
-        task = new Task(task.getTitle(), task.getDescription(), taskId);
         task.setStatus(Status.DONE);
         inMemoryTaskManager.updateTask(task);
         Assertions.assertEquals(Status.DONE, inMemoryTaskManager.getTaskById(taskId).getStatus());
@@ -142,17 +145,14 @@ class InMemoryTaskManagerTest implements TestInputValues {
     @Test
     void updateEpic() {
         Epic existingEpic = inMemoryTaskManager.getEpicById(existingEpicId);
-        Epic newEpic = new Epic(existingEpic.getTitle(), existingEpic.getDescription(), existingEpic.getId());
-        newEpic.setStatus(Status.NEW);
-        inMemoryTaskManager.updateEpic(newEpic);
+        existingEpic.setStatus(Status.NEW);
+        inMemoryTaskManager.updateEpic(existingEpic);
         Assertions.assertEquals(Status.NEW, inMemoryTaskManager.getEpicById(existingEpicId).getStatus());
-        newEpic = new Epic(existingEpic.getTitle(), existingEpic.getDescription(), existingEpic.getId());
-        newEpic.setStatus(Status.IN_PROGRESS);
-        inMemoryTaskManager.updateEpic(newEpic);
+        existingEpic.setStatus(Status.IN_PROGRESS);
+        inMemoryTaskManager.updateEpic(existingEpic);
         Assertions.assertEquals(Status.NEW, inMemoryTaskManager.getEpicById(existingEpicId).getStatus());
-        newEpic = new Epic(existingEpic.getTitle(), existingEpic.getDescription(), existingEpic.getId());
         existingEpic.setStatus(Status.DONE);
-        inMemoryTaskManager.updateEpic(newEpic);
+        inMemoryTaskManager.updateEpic(existingEpic);
         Assertions.assertEquals(Status.NEW, inMemoryTaskManager.getEpicById(existingEpicId).getStatus());
     }
 
@@ -160,39 +160,58 @@ class InMemoryTaskManagerTest implements TestInputValues {
     void updateSubtask() {
         //changing first sub
         Subtask existingSub = inMemoryTaskManager.getSubtaskById(existingFirstSubId);
-        Subtask newSub = new Subtask(existingSub.getTitle(), existingSub.getDescription(), existingSub.getId(), existingSub.getEpic());
-        newSub.setStatus(Status.IN_PROGRESS);
-        inMemoryTaskManager.updateSubtask(newSub);
+        existingSub.setStatus(Status.IN_PROGRESS);
+        inMemoryTaskManager.updateSubtask(existingSub);
         //subtask in repository changed
-        Assertions.assertEquals(newSub.getStatus(), inMemoryTaskManager.getSubtaskById(existingFirstSubId).getStatus());
+        Assertions.assertEquals(existingSub.getStatus(), inMemoryTaskManager.getSubtaskById(existingFirstSubId).getStatus());
         //subtask's epic contains new sub
-        List<Subtask> subs = inMemoryTaskManager.getSubtaskById(existingFirstSubId).getEpic().getSubtasks();
-        Assertions.assertTrue(subs.contains(newSub));
+        List<Subtask> subs = inMemoryTaskManager.
+                getEpicById(
+                        inMemoryTaskManager.
+                                getSubtaskById(existingFirstSubId)
+                                .getEpicId()
+                ).getSubtasks();
+        Assertions.assertTrue(subs.contains(existingSub));
         for (Subtask sub : subs) {
-            if(sub.equals(newSub)) {
-                Assertions.assertEquals(newSub.getStatus(), sub.getStatus());
+            if(sub.equals(existingSub)) {
+                Assertions.assertEquals(existingSub.getStatus(), sub.getStatus());
             }
         }
         //subtask's epic status changed
-        Assertions.assertEquals(newSub.getStatus(), inMemoryTaskManager.getSubtaskById(existingFirstSubId).getEpic().getStatus());
+        Assertions.assertEquals(existingSub.getStatus(),
+                inMemoryTaskManager.
+                        getEpicById(
+                                inMemoryTaskManager.
+                                        getSubtaskById(existingFirstSubId).
+                                        getEpicId()
+                        ).getStatus());
 
         //changing second sub
         existingSub = inMemoryTaskManager.getSubtaskById(existingSecondSubId);
-        newSub = new Subtask(existingSub.getTitle(), existingSub.getDescription(), existingSub.getId(), existingSub.getEpic());
-        newSub.setStatus(Status.DONE);
-        inMemoryTaskManager.updateSubtask(newSub);
+        existingSub.setStatus(Status.DONE);
+        inMemoryTaskManager.updateSubtask(existingSub);
         //subtask in repository changed
-        Assertions.assertEquals(newSub.getStatus(), inMemoryTaskManager.getSubtaskById(existingSecondSubId).getStatus());
+        Assertions.assertEquals(existingSub.getStatus(), inMemoryTaskManager.getSubtaskById(existingSecondSubId).getStatus());
         //subtask's epic contains new sub
-        subs = inMemoryTaskManager.getSubtaskById(existingSecondSubId).getEpic().getSubtasks();
-        Assertions.assertTrue(subs.contains(newSub));
+        subs = inMemoryTaskManager.
+                getEpicById(
+                        inMemoryTaskManager.
+                                getSubtaskById(existingSecondSubId).
+                                getEpicId()
+                ).getSubtasks();
+        Assertions.assertTrue(subs.contains(existingSub));
         for (Subtask sub : subs) {
-            if(sub.equals(newSub)) {
-                Assertions.assertEquals(newSub.getStatus(), sub.getStatus());
+            if(sub.equals(existingSub)) {
+                Assertions.assertEquals(existingSub.getStatus(), sub.getStatus());
             }
         }
         //subtask's epic status changed
-        Assertions.assertEquals(Status.IN_PROGRESS, inMemoryTaskManager.getSubtaskById(existingSecondSubId).getEpic().getStatus());
+        Assertions.assertEquals(Status.IN_PROGRESS,
+                inMemoryTaskManager.getEpicById(
+                        inMemoryTaskManager.
+                                getSubtaskById(existingSecondSubId).
+                                getEpicId()
+                ).getStatus());
     }
 
     @Test
@@ -251,5 +270,20 @@ class InMemoryTaskManagerTest implements TestInputValues {
         inMemoryTaskManager.deleteAllSubTasks();
         Assertions.assertTrue(inMemoryTaskManager.getAllSubtasks().isEmpty());
         Assertions.assertTrue(inMemoryTaskManager.getEpicById(existingEpicId).getSubtasks().isEmpty());
+    }
+    @Test
+    void getHistory() throws InMemoryTaskManager.IdGeneratorOverflow {
+        String taskId = inMemoryTaskManager.generateId();
+        inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId));
+        Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).getId());
+        List<Task> called = List.of(inMemoryTaskManager.getTaskById(taskId),
+        inMemoryTaskManager.getEpicById(existingEpicId),
+        inMemoryTaskManager.getSubtaskById(existingFirstSubId),
+        inMemoryTaskManager.getSubtaskById(existingSecondSubId));
+        List<? extends Task> historyList = inMemoryTaskManager.getHistory();
+        //called tasks are added to history and put in the order they were called in
+        for (int i = 1; i < called.size(); i++) {
+            Assertions.assertEquals(called.get(i-1).getId(), historyList.get(i).getId());
+        }
     }
 }

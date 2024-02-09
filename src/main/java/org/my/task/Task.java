@@ -2,7 +2,7 @@ package org.my.task;
 
 import java.util.Objects;
 
-public class Task {
+public class Task implements Cloneable{
     private String title;
     private String description;
     private final String id;
@@ -46,8 +46,7 @@ public class Task {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Task)) return false;
-        Task task = (Task) o;
+        if (!(o instanceof Task task)) return false;
         return Objects.equals(getTitle(), task.getTitle()) && Objects.equals(getDescription(), task.getDescription()) && Objects.equals(getId(), task.getId()) && getStatus() == task.getStatus();
     }
 
@@ -64,5 +63,14 @@ public class Task {
                 ", id='" + id + '\'' +
                 ", status=" + status +
                 '}';
+    }
+
+    @Override
+    public Task clone() {
+        try {
+            return (Task) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError();
+        }
     }
 }
