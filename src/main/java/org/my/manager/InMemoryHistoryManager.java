@@ -9,6 +9,7 @@ import java.util.Queue;
 
 public class InMemoryHistoryManager implements HistoryManager{
     private final Queue<Task> history = new LinkedList<>();
+    private static final int historySize = 10;
     public InMemoryHistoryManager() {
     }
 
@@ -16,7 +17,7 @@ public class InMemoryHistoryManager implements HistoryManager{
     public void addTask(Task task) {
         if(task == null) return;
         int size = history.size();
-        if (size >= 10) {
+        if (size >= historySize) {
             history.remove();
         }
         history.add(task);
