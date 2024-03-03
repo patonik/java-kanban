@@ -103,8 +103,9 @@ public class InMemoryHistoryManager implements HistoryManager {
         }
 
         public void remove(String id) {
+            if (!queueRegister.containsKey(id)) return;
             int pos = queueRegister.get(id);
-            Node p = queue[queueRegister.get(id)];
+            Node p = queue[pos];
             if (!last.equals(p)) {
                 if (!first.equals(p)) {
                     p.prev.next = p.next;
@@ -114,10 +115,15 @@ public class InMemoryHistoryManager implements HistoryManager {
                     first = p.next;
                 }
                 System.arraycopy(queue, pos + 1, queue, pos, current - 1 - pos);
+                for (String qId : queueRegister.keySet()) {
+                    int val = queueRegister.get(qId);
+                    if (val>pos) queueRegister.put(qId,val-1);
+                }
             } else {
                 p.prev.next = null;
                 last = p.prev;
             }
+            queue[current-1]=null;
             current--;
             queueRegister.remove(id);
         }

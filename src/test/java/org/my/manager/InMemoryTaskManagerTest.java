@@ -285,5 +285,15 @@ class InMemoryTaskManagerTest implements TestInputValues {
         for (int i = 0; i < called.size(); i++) {
             Assertions.assertEquals(called.get(i).getId(), historyList.get(i).getId());
         }
+        inMemoryTaskManager.getEpicById(existingEpicId);
+        //epic should be removed and placed at the end
+        historyList = inMemoryTaskManager.getHistory();
+        Assertions.assertNotEquals(called.get(1).getId(), historyList.get(1).getId());
+        Assertions.assertEquals(called.get(1).getId(), historyList.get(3).getId());
+        //removed task is not in history including subtasks
+        inMemoryTaskManager.deleteEpicById(existingEpicId);
+        historyList = inMemoryTaskManager.getHistory();
+        Assertions.assertEquals(1, historyList.size());
+        Assertions.assertEquals(taskId, historyList.getFirst().getId());
     }
 }
