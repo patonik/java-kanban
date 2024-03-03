@@ -282,8 +282,8 @@ class InMemoryTaskManagerTest implements TestInputValues {
         inMemoryTaskManager.getSubtaskById(existingSecondSubId));
         List<? extends Task> historyList = inMemoryTaskManager.getHistory();
         //called tasks are added to history and put in the order they were called in
-        for (int i = 1; i < called.size(); i++) {
-            Assertions.assertEquals(called.get(i-1).getId(), historyList.get(i).getId());
+        for (int i = 0; i < called.size(); i++) {
+            Assertions.assertEquals(called.get(i).getId(), historyList.get(i).getId());
         }
     }
 }
