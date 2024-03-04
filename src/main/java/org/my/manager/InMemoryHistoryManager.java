@@ -18,7 +18,9 @@ public class InMemoryHistoryManager implements HistoryManager {
 
     @Override
     public void remove(Task task) {
-        if (task == null || !history.contains(task.getId())) return;
+        if (task == null || !history.contains(task.getId())) {
+            return;
+        }
         history.remove(task.getId());
     }
 
@@ -29,26 +31,22 @@ public class InMemoryHistoryManager implements HistoryManager {
 
     private static class HistoryQueue {
         private static final int capacity = 16;
-        private double loadFactor = 0.75;
+        private static final double loadFactor = 0.75;
         private Node[] queue;
         private Node first;
         private Node last;
         private int current = 0;
-        private final HashMap<String, Integer> queueRegister = new HashMap<>();
-
-        public HistoryQueue(int capacity, double loadFactor) {
-            this(capacity);
-            if (loadFactor <= 0) throw new IllegalArgumentException();
-            this.loadFactor = loadFactor;
-        }
+        private final Map<String, Integer> queueRegister = new HashMap<>();
 
         public HistoryQueue(int capacity) {
             if (capacity <= 0) throw new IllegalArgumentException();
             this.queue = new Node[capacity];
         }
+
         public HistoryQueue() {
             this(capacity);
         }
+
         public void add(Task task) {
             String id = task.getId();
             if (!queueRegister.containsKey(id)) {
@@ -96,8 +94,6 @@ public class InMemoryHistoryManager implements HistoryManager {
         }
 
 
-
-
         public boolean contains(String id) {
             return queueRegister.containsKey(id);
         }
@@ -117,13 +113,13 @@ public class InMemoryHistoryManager implements HistoryManager {
                 System.arraycopy(queue, pos + 1, queue, pos, current - 1 - pos);
                 for (String qId : queueRegister.keySet()) {
                     int val = queueRegister.get(qId);
-                    if (val>pos) queueRegister.put(qId,val-1);
+                    if (val > pos) queueRegister.put(qId, val - 1);
                 }
             } else {
                 p.prev.next = null;
                 last = p.prev;
             }
-            queue[current-1]=null;
+            queue[current - 1] = null;
             current--;
             queueRegister.remove(id);
         }

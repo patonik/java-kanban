@@ -173,7 +173,7 @@ class InMemoryTaskManagerTest implements TestInputValues {
                 ).getSubtasks();
         Assertions.assertTrue(subs.contains(existingSub));
         for (Subtask sub : subs) {
-            if(sub.equals(existingSub)) {
+            if (sub.equals(existingSub)) {
                 Assertions.assertEquals(existingSub.getStatus(), sub.getStatus());
             }
         }
@@ -201,7 +201,7 @@ class InMemoryTaskManagerTest implements TestInputValues {
                 ).getSubtasks();
         Assertions.assertTrue(subs.contains(existingSub));
         for (Subtask sub : subs) {
-            if(sub.equals(existingSub)) {
+            if (sub.equals(existingSub)) {
                 Assertions.assertEquals(existingSub.getStatus(), sub.getStatus());
             }
         }
@@ -245,7 +245,7 @@ class InMemoryTaskManagerTest implements TestInputValues {
     void getSubtasksOfEpic() {
         List<Subtask> subs = inMemoryTaskManager.getSubtasksOfEpic(inMemoryTaskManager.getEpicById(existingEpicId));
         for (Subtask sub : subs) {
-            Assertions.assertTrue(sub.getId().equals(existingFirstSubId)||sub.getId().equals(existingSecondSubId));
+            Assertions.assertTrue(sub.getId().equals(existingFirstSubId) || sub.getId().equals(existingSecondSubId));
         }
     }
 
@@ -271,15 +271,16 @@ class InMemoryTaskManagerTest implements TestInputValues {
         Assertions.assertTrue(inMemoryTaskManager.getAllSubtasks().isEmpty());
         Assertions.assertTrue(inMemoryTaskManager.getEpicById(existingEpicId).getSubtasks().isEmpty());
     }
+
     @Test
     void getHistory() throws InMemoryTaskManager.IdGeneratorOverflow {
         String taskId = inMemoryTaskManager.generateId();
         inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId));
         Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).getId());
         List<Task> called = List.of(inMemoryTaskManager.getTaskById(taskId),
-        inMemoryTaskManager.getEpicById(existingEpicId),
-        inMemoryTaskManager.getSubtaskById(existingFirstSubId),
-        inMemoryTaskManager.getSubtaskById(existingSecondSubId));
+                inMemoryTaskManager.getEpicById(existingEpicId),
+                inMemoryTaskManager.getSubtaskById(existingFirstSubId),
+                inMemoryTaskManager.getSubtaskById(existingSecondSubId));
         List<? extends Task> historyList = inMemoryTaskManager.getHistory();
         //called tasks are added to history and put in the order they were called in
         for (int i = 0; i < called.size(); i++) {

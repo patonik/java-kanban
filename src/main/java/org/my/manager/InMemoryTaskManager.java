@@ -4,6 +4,7 @@ import org.my.task.Epic;
 import org.my.task.Status;
 import org.my.task.Subtask;
 import org.my.task.Task;
+
 import java.util.*;
 
 
@@ -116,8 +117,7 @@ public class InMemoryTaskManager implements TaskManager {
         Status subStatus = newSubtask.getStatus();
         if (subs.isEmpty()) {
             parent.setStatus(subStatus);
-        }
-        else {
+        } else {
             if (parent.isNew() && subStatus.equals(Status.NEW)) parent.setStatus(Status.NEW);
             else if (parent.isCompleted() && subStatus.equals(Status.DONE)) parent.setStatus(Status.DONE);
             else parent.setStatus(Status.IN_PROGRESS);
@@ -133,7 +133,7 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public void updateEpic(Epic epic) {
         Epic stored = epics.get(epic.getId());
-        if(stored == null) {
+        if (stored == null) {
             createEpic(epic);
             return;
         }
@@ -163,8 +163,7 @@ public class InMemoryTaskManager implements TaskManager {
         Status subStatus = newSubtask.getStatus();
         if (epicSubTasks.isEmpty()) {
             parent.setStatus(subStatus);
-        }
-        else {
+        } else {
             if (parent.isNew() && subStatus.equals(Status.NEW)) parent.setStatus(Status.NEW);
             else if (parent.isCompleted() && subStatus.equals(Status.DONE)) parent.setStatus(Status.DONE);
             else parent.setStatus(Status.IN_PROGRESS);
