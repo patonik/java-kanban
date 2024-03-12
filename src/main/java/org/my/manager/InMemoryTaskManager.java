@@ -14,7 +14,7 @@ public class InMemoryTaskManager implements TaskManager {
     private final Map<String, Subtask> subtasks = new HashMap<>();
     private final HistoryManager historyManager;
 
-    private final static char[] RANGE = new char[]{33, 127};
+    private static final char[] RANGE = new char[]{33, 127};
     private final char[] valueCounter;
     boolean idOverflow;
 
