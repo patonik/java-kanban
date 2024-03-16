@@ -2,7 +2,8 @@ package org.my.task;
 
 import java.util.Objects;
 
-public class Task implements Cloneable{
+public class Task implements Cloneable {
+
     private String title;
     private String description;
     private final String id;
@@ -73,4 +74,6 @@ public class Task implements Cloneable{
             throw new AssertionError();
         }
     }
+
+
 }

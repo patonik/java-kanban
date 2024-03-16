@@ -1,8 +1,10 @@
 package org.my.manager;
 
 public class Managers {
-    private Managers(){}
-    public static TaskManager getDefault(){
+    private Managers() {
+    }
+
+    public static TaskManager getDefault() {
         return getInMemoryTaskManager();
     }
 
@@ -13,6 +15,7 @@ public class Managers {
     public static HistoryManager getDefaultHistory() {
         return getInMemoryHistoryManager();
     }
+
     public static InMemoryHistoryManager getInMemoryHistoryManager() {
         return new InMemoryHistoryManager();
     }

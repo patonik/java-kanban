@@ -11,9 +11,11 @@ public class Epic extends Task {
         super(title, description, id);
         this.subtasks = new ArrayList<>();
     }
+
     public List<Subtask> getSubtasks() {
         return subtasks;
     }
+
     public boolean isCompleted() {
         for (Subtask subtask : subtasks) {
             if (subtask.getStatus() != Status.DONE) {
@@ -22,6 +24,7 @@ public class Epic extends Task {
         }
         return true;
     }
+
     public boolean isActive() {
         for (Subtask subtask : subtasks) {
             if (subtask.getStatus() == Status.IN_PROGRESS) {
@@ -30,6 +33,7 @@ public class Epic extends Task {
         }
         return false;
     }
+
     public boolean isNew() {
         for (Subtask subtask : subtasks) {
             if (subtask.getStatus() != Status.NEW) {
