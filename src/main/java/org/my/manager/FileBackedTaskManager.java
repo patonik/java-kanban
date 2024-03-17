@@ -51,8 +51,8 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
 
     public static synchronized FileBackedTaskManager getInstance() throws ManagerSaveException {
         Properties properties = new Properties();
-        Path saveFile = null;
-        Path saveHistoryFile = null;
+        Path saveFile;
+        Path saveHistoryFile;
         FileInputStream fis = null;
         try {
             fis = new FileInputStream("src\\main\\resources\\filebackedtaskmanager.properties");
@@ -67,7 +67,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
                     fis.close();
                 }
             } catch (IOException e) {
-                throw new ManagerSaveException("properties file closing error");
+                e.printStackTrace();
             }
         }
         if (fileBackedTaskManager == null) {
@@ -388,7 +388,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
         return sj.toString();
     }
 
-    public void unstringify(String line) throws ManagerSaveException {
+    public void unstringify(String line) {
         String[] params = line.split(RECORD_SEPARATOR);
         switch (TaskType.valueOf(params[1])) {
             case EPIC -> {
@@ -409,18 +409,14 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
         }
     }
 
-    public void unstringifyHistory(String line) throws ManagerSaveException {
+    public void unstringifyHistory(String line) {
         String[] params = line.split(RECORD_SEPARATOR);
         switch (TaskType.valueOf(params[1])) {
-            case EPIC -> {
-                getEpicById(params[0]);
-            }
-            case SUBTASK -> {
-                getSubtaskById(params[0]);
-            }
-            case TASK -> {
-                getTaskById(params[0]);
-            }
+            case EPIC -> getEpicById(params[0]);
+
+            case SUBTASK -> getSubtaskById(params[0]);
+
+            case TASK -> getTaskById(params[0]);
         }
     }
 

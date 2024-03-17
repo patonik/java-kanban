@@ -70,10 +70,9 @@ public class FileBackedTaskManagerTest {
 
     @Test
     void createTask() throws Exception {
-        List<Task> taskList = fileBackedTaskManager.getAllTasks();
         String taskId = fileBackedTaskManager.generateId();
         fileBackedTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId));
-        taskList = fileBackedTaskManager.getAllTasks();
+        List<Task> taskList = fileBackedTaskManager.getAllTasks();
         Assertions.assertFalse(taskList.isEmpty());
         Assertions.assertTrue(Files.exists(saveFile));
         fileBackedTaskManager.close();
@@ -138,6 +137,7 @@ public class FileBackedTaskManagerTest {
             String[] params = line.split(FileBackedTaskManager.RECORD_SEPARATOR);
             if (params[0].equals(taskId)) {
                 inFile = true;
+                break;
             }
         }
         Assertions.assertFalse(inFile);
