@@ -93,22 +93,33 @@ public class InMemoryTaskManager implements TaskManager {
     }
 
     @Override
-    public void createTask(Task task) {
+    public boolean createTask(Task task) {
+        if (tasks.containsKey(task.getId())) {
+            return false;
+        }
         Task newTask = task.clone();
         tasks.put(task.getId(), newTask);
+        return true;
     }
 
     @Override
-    public void createEpic(Epic epic) {
+    public boolean createEpic(Epic epic) {
+        if (epics.containsKey(epic.getId())) {
+            return false;
+        }
         Epic newEpic = (Epic) epic.clone();
         if (!newEpic.getStatus().equals(Status.NEW)) {
             newEpic.setStatus(Status.NEW);
         }
         epics.put(epic.getId(), newEpic);
+        return true;
     }
 
     @Override
-    public void createSubtask(Subtask subtask) {
+    public boolean createSubtask(Subtask subtask) {
+        if (subtasks.containsKey(subtask.getId())) {
+            return false;
+        }
         Subtask newSubtask = (Subtask) subtask.clone();
         subtasks.put(subtask.getId(), newSubtask);
         Epic parent = epics.get(subtask.getEpicId());
@@ -122,11 +133,13 @@ public class InMemoryTaskManager implements TaskManager {
             else parent.setStatus(Status.IN_PROGRESS);
         }
         subs.add(newSubtask);
+        return true;
     }
 
     @Override
     public void updateTask(Task task) {
-        createTask(task);
+        Task newTask = task.clone();
+        tasks.put(task.getId(), newTask);
     }
 
     @Override
@@ -173,20 +186,24 @@ public class InMemoryTaskManager implements TaskManager {
 
 
     @Override
-    public void deleteTaskById(String id) {
+    public Task deleteTaskById(String id) {
+        Task task = tasks.get(id).clone();
         tasks.remove(id);
+        return task;
     }
 
     @Override
-    public void deleteEpicById(String id) {
+    public Epic deleteEpicById(String id) {
         for (Subtask subtask : epics.get(id).getSubtasks()) {
             subtasks.remove(subtask.getId());
         }
+        Epic epic = (Epic) epics.get(id).clone();
         epics.remove(id);
+        return epic;
     }
 
     @Override
-    public void deleteSubtaskById(String id) {
+    public Subtask deleteSubtaskById(String id) {
         Epic parent = epics.get(subtasks.get(id).getEpicId());
         List<Subtask> epicSubTasks = parent.getSubtasks();
         Subtask previous = null;
@@ -198,7 +215,9 @@ public class InMemoryTaskManager implements TaskManager {
         if (previous != null) {
             epicSubTasks.remove(previous);
         }
+        Subtask subtask = (Subtask) subtasks.get(id).clone();
         subtasks.remove(id);
+        return subtask;
     }
 
     @Override

@@ -10,10 +10,10 @@ import org.my.task.Task;
 import java.util.List;
 
 class InMemoryTaskManagerTest implements TestInputValues {
-    InMemoryTaskManager inMemoryTaskManager;
-    String existingEpicId;
-    String existingFirstSubId;
-    String existingSecondSubId;
+    private InMemoryTaskManager inMemoryTaskManager;
+    private String existingEpicId;
+    private String existingFirstSubId;
+    private String existingSecondSubId;
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {

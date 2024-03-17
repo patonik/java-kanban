@@ -12,6 +12,15 @@ public class Managers {
         return new InMemoryTaskManager();
     }
 
+    public static FileBackedTaskManager getFileBackedTaskManager() {
+        try {
+            return FileBackedTaskManager.getInstance();
+        } catch (FileBackedTaskManager.ManagerSaveException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public static HistoryManager getDefaultHistory() {
         return getInMemoryHistoryManager();
     }
