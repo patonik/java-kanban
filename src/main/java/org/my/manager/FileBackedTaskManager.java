@@ -14,11 +14,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.*;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.StringJoiner;
 
 public class FileBackedTaskManager extends InMemoryTaskManager implements TaskManager, AutoCloseable {
     public static final String RECORD_SEPARATOR = String.valueOf(0x001E);
+    private static final String PROP_RES = "filebackedtaskmanager.properties";
     public static final String LINE_SEPARATOR = "\r\n";
     private final Path saveFile;
     private final Path saveHistoryFile;
@@ -55,7 +57,13 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
         Path saveHistoryFile;
         FileInputStream fis = null;
         try {
-            fis = new FileInputStream("src\\main\\resources\\filebackedtaskmanager.properties");
+            fis = new FileInputStream(
+                    Objects.requireNonNull(
+                            FileBackedTaskManager.class
+                                    .getClassLoader()
+                                    .getResource(PROP_RES)
+                    ).getFile()
+            );
             properties.load(fis);
             saveFile = Paths.get(properties.getProperty("path", ""));
             saveHistoryFile = Paths.get(properties.getProperty("historyPath", ""));

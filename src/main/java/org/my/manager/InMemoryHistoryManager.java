@@ -9,16 +9,18 @@ import java.util.Queue;
 
 public class InMemoryHistoryManager implements HistoryManager {
     private final Queue<Task> history = new LinkedList<>();
-    private static final int historySize = 10;
+    private static final int HISTORY_SIZE = 10;
 
     public InMemoryHistoryManager() {
     }
 
     @Override
     public void addTask(Task task) {
-        if (task == null) return;
+        if (task == null) {
+            return;
+        }
         int size = history.size();
-        if (size >= historySize) {
+        if (size >= HISTORY_SIZE) {
             history.remove();
         }
         history.add(task);
