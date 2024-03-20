@@ -19,11 +19,11 @@ public interface TaskManager {
 
     Subtask getSubtaskById(String id);
 
-    void createTask(Task task);
+    boolean createTask(Task task);
 
-    void createEpic(Epic epic);
+    boolean createEpic(Epic epic);
 
-    void createSubtask(Subtask subtask);
+    boolean createSubtask(Subtask subtask);
 
     void updateTask(Task task);
 
@@ -31,11 +31,11 @@ public interface TaskManager {
 
     void updateSubtask(Subtask subtask);
 
-    void deleteTaskById(String id);
+    Task deleteTaskById(String id);
 
-    void deleteEpicById(String id);
+    Epic deleteEpicById(String id);
 
-    void deleteSubtaskById(String id);
+    Subtask deleteSubtaskById(String id);
 
     List<Subtask> getSubtasksOfEpic(Epic epic);
 
