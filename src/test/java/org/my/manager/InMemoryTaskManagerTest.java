@@ -165,10 +165,10 @@ class InMemoryTaskManagerTest implements TestInputValues {
         //subtask in repository changed
         Assertions.assertEquals(existingSub.getStatus(), inMemoryTaskManager.getSubtaskById(existingFirstSubId).getStatus());
         //subtask's epic contains new sub
-        List<Subtask> subs = inMemoryTaskManager.
-                getEpicById(
-                        inMemoryTaskManager.
-                                getSubtaskById(existingFirstSubId)
+        List<Subtask> subs = inMemoryTaskManager
+                .getEpicById(
+                        inMemoryTaskManager
+                                .getSubtaskById(existingFirstSubId)
                                 .getEpicId()
                 ).getSubtasks();
         Assertions.assertTrue(subs.contains(existingSub));
@@ -179,11 +179,11 @@ class InMemoryTaskManagerTest implements TestInputValues {
         }
         //subtask's epic status changed
         Assertions.assertEquals(existingSub.getStatus(),
-                inMemoryTaskManager.
-                        getEpicById(
-                                inMemoryTaskManager.
-                                        getSubtaskById(existingFirstSubId).
-                                        getEpicId()
+                inMemoryTaskManager
+                        .getEpicById(
+                                inMemoryTaskManager
+                                        .getSubtaskById(existingFirstSubId)
+                                        .getEpicId()
                         ).getStatus());
 
         //changing second sub
@@ -193,11 +193,11 @@ class InMemoryTaskManagerTest implements TestInputValues {
         //subtask in repository changed
         Assertions.assertEquals(existingSub.getStatus(), inMemoryTaskManager.getSubtaskById(existingSecondSubId).getStatus());
         //subtask's epic contains new sub
-        subs = inMemoryTaskManager.
-                getEpicById(
-                        inMemoryTaskManager.
-                                getSubtaskById(existingSecondSubId).
-                                getEpicId()
+        subs = inMemoryTaskManager
+                .getEpicById(
+                        inMemoryTaskManager
+                                .getSubtaskById(existingSecondSubId)
+                                        .getEpicId()
                 ).getSubtasks();
         Assertions.assertTrue(subs.contains(existingSub));
         for (Subtask sub : subs) {
@@ -208,9 +208,9 @@ class InMemoryTaskManagerTest implements TestInputValues {
         //subtask's epic status changed
         Assertions.assertEquals(Status.IN_PROGRESS,
                 inMemoryTaskManager.getEpicById(
-                        inMemoryTaskManager.
-                                getSubtaskById(existingSecondSubId).
-                                getEpicId()
+                        inMemoryTaskManager
+                                .getSubtaskById(existingSecondSubId)
+                                        .getEpicId()
                 ).getStatus());
     }
 
