@@ -39,11 +39,11 @@ public interface TaskManager {
 
     List<Subtask> getSubtasksOfEpic(Epic epic);
 
-    void deleteAllTasks();
+    boolean deleteAllTasks();
 
-    void deleteAllEpics();
+    boolean deleteAllEpics();
 
-    void deleteAllSubTasks();
+    boolean deleteAllSubTasks();
 
     List<? extends Task> getHistory();
 }

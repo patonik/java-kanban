@@ -7,6 +7,7 @@ import org.my.task.Epic;
 import org.my.task.Status;
 import org.my.task.Subtask;
 import org.my.task.Task;
+import org.my.util.IdGenerator;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -15,6 +16,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -63,7 +67,7 @@ public class FileBackedTaskManagerTest {
                             existingEpicId
                     )
             );
-        } catch (InMemoryTaskManager.IdGeneratorOverflow e) {
+        } catch (IdGenerator.IdGeneratorOverflow e) {
             throw new RuntimeException(e);
         }
     }
@@ -71,7 +75,11 @@ public class FileBackedTaskManagerTest {
     @Test
     void createTask() throws Exception {
         String taskId = fileBackedTaskManager.generateId();
-        fileBackedTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId));
+        fileBackedTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2),
+                LEVEL_1_DESCRIPTIONS.get(2),
+                taskId,
+                Duration.of(30, ChronoUnit.MINUTES),
+                LocalDateTime.of(2024, 2, 20, 1, 0)));
         List<Task> taskList = fileBackedTaskManager.getAllTasks();
         Assertions.assertFalse(taskList.isEmpty());
         Assertions.assertTrue(Files.exists(saveFile));
@@ -91,7 +99,9 @@ public class FileBackedTaskManagerTest {
     @Test
     void updateTask() throws Exception {
         String taskId = fileBackedTaskManager.generateId();
-        Task task = new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId);
+        Task task = new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId,
+                Duration.of(30, ChronoUnit.MINUTES),
+                LocalDateTime.of(2024, 2, 20, 1, 0));
         fileBackedTaskManager.createTask(task);
         task.setStatus(Status.DONE);
         fileBackedTaskManager.updateTask(task);
@@ -121,9 +131,11 @@ public class FileBackedTaskManagerTest {
 
 
     @Test
-    void deleteTaskById() throws InMemoryTaskManager.IdGeneratorOverflow, IOException {
+    void deleteTaskById() throws IdGenerator.IdGeneratorOverflow, IOException {
         String taskId = fileBackedTaskManager.generateId();
-        fileBackedTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId));
+        fileBackedTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId,
+                Duration.of(30, ChronoUnit.MINUTES),
+                LocalDateTime.of(2024, 2, 20, 1, 0)));
         Assertions.assertEquals(taskId, fileBackedTaskManager.getTaskById(taskId).getId());
         fileBackedTaskManager.deleteTaskById(taskId);
         Assertions.assertNull(fileBackedTaskManager.getTaskById(taskId));
@@ -146,9 +158,11 @@ public class FileBackedTaskManagerTest {
 
 
     @Test
-    void deleteAllTasks() throws InMemoryTaskManager.IdGeneratorOverflow, IOException {
+    void deleteAllTasks() throws IdGenerator.IdGeneratorOverflow, IOException {
         String taskId = fileBackedTaskManager.generateId();
-        fileBackedTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId));
+        fileBackedTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId,
+                Duration.of(30, ChronoUnit.MINUTES),
+                LocalDateTime.of(2024, 2, 20, 1, 0)));
         Assertions.assertEquals(taskId, fileBackedTaskManager.getTaskById(taskId).getId());
         fileBackedTaskManager.deleteAllTasks();
         Assertions.assertTrue(fileBackedTaskManager.getAllTasks().isEmpty());

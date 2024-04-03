@@ -1,5 +1,7 @@
 package org.my.task;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Objects;
 
 public class Task implements Cloneable {
@@ -8,12 +10,16 @@ public class Task implements Cloneable {
     private String description;
     private final String id;
     private Status status;
+    private Duration duration;
+    private LocalDateTime startTime;
 
-    public Task(String title, String description, String id) {
+    public Task(String title, String description, String id, Duration duration, LocalDateTime startTime) {
         this.title = title;
         this.description = description;
         this.id = id;
         this.status = Status.NEW;
+        this.duration = duration;
+        this.startTime = startTime;
     }
 
     public String getTitle() {
@@ -42,6 +48,26 @@ public class Task implements Cloneable {
 
     public void setStatus(Status status) {
         this.status = status;
+    }
+
+    public LocalDateTime getEndTime() {
+        return startTime.plus(duration);
+    }
+
+    public Duration getDuration() {
+        return duration;
+    }
+
+    public LocalDateTime getStartTime() {
+        return startTime;
+    }
+
+    public void setDuration(Duration duration) {
+        this.duration = duration;
+    }
+
+    public void setStartTime(LocalDateTime startTime) {
+        this.startTime = startTime;
     }
 
     @Override

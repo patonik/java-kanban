@@ -6,7 +6,11 @@ import org.my.task.Epic;
 import org.my.task.Status;
 import org.my.task.Subtask;
 import org.my.task.Task;
+import org.my.util.IdGenerator;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 class InMemoryTaskManagerTest implements TestInputValues {
@@ -31,6 +35,8 @@ class InMemoryTaskManagerTest implements TestInputValues {
                             LEVEL_2_NAMES.getFirst().getFirst(),
                             LEVEL_2_DESCRIPTIONS.getFirst().getFirst(),
                             existingFirstSubId = inMemoryTaskManager.generateId(),
+                            Duration.of(30, ChronoUnit.MINUTES),
+                            LocalDateTime.of(2024, 2, 20, 1, 0),
                             existingEpicId
                     )
             );
@@ -39,20 +45,30 @@ class InMemoryTaskManagerTest implements TestInputValues {
                             LEVEL_2_NAMES.getFirst().get(1),
                             LEVEL_2_DESCRIPTIONS.getFirst().get(1),
                             existingSecondSubId = inMemoryTaskManager.generateId(),
+                            Duration.of(30, ChronoUnit.MINUTES),
+                            LocalDateTime.of(2024, 2, 20, 1, 0),
                             existingEpicId
                     )
             );
-        } catch (InMemoryTaskManager.IdGeneratorOverflow e) {
+        } catch (IdGenerator.IdGeneratorOverflow e) {
             throw new RuntimeException(e);
         }
     }
 
     @Test
-    void getAllTasks() throws InMemoryTaskManager.IdGeneratorOverflow {
+    void getAllTasks() throws IdGenerator.IdGeneratorOverflow {
         List<Task> taskList = inMemoryTaskManager.getAllTasks();
         Assertions.assertTrue(taskList.isEmpty());
         String taskId = inMemoryTaskManager.generateId();
-        inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId));
+        inMemoryTaskManager.createTask(
+                new Task(
+                        LEVEL_1_NAMES.get(2),
+                        LEVEL_1_DESCRIPTIONS.get(2),
+                        taskId,
+                        Duration.of(30, ChronoUnit.MINUTES),
+                        LocalDateTime.of(2024, 2, 20, 1, 0)
+                )
+        );
         taskList = inMemoryTaskManager.getAllTasks();
         Assertions.assertFalse(taskList.isEmpty());
     }
@@ -72,9 +88,13 @@ class InMemoryTaskManagerTest implements TestInputValues {
     }
 
     @Test
-    void getTaskById() throws InMemoryTaskManager.IdGeneratorOverflow {
+    void getTaskById() throws IdGenerator.IdGeneratorOverflow {
         String taskId = inMemoryTaskManager.generateId();
-        inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId));
+        inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2),
+                LEVEL_1_DESCRIPTIONS.get(2),
+                taskId,
+                Duration.of(30, ChronoUnit.MINUTES),
+                LocalDateTime.of(2024, 2, 20, 1, 0)));
         Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).getId());
     }
 
@@ -90,21 +110,25 @@ class InMemoryTaskManagerTest implements TestInputValues {
     }
 
     @Test
-    void createTask() throws InMemoryTaskManager.IdGeneratorOverflow {
+    void createTask() throws IdGenerator.IdGeneratorOverflow {
         String taskId = inMemoryTaskManager.generateId();
-        inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId));
+        inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2),
+                LEVEL_1_DESCRIPTIONS.get(2),
+                taskId,
+                Duration.of(30, ChronoUnit.MINUTES),
+                LocalDateTime.of(2024, 2, 20, 1, 0)));
         Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).getId());
     }
 
     @Test
-    void createEpic() throws InMemoryTaskManager.IdGeneratorOverflow {
+    void createEpic() throws IdGenerator.IdGeneratorOverflow {
         String epicId = inMemoryTaskManager.generateId();
         inMemoryTaskManager.createEpic(new Epic(LEVEL_1_NAMES.get(1), LEVEL_1_DESCRIPTIONS.get(1), epicId));
         Assertions.assertEquals(epicId, inMemoryTaskManager.getEpicById(epicId).getId());
     }
 
     @Test
-    void createSubtask() throws InMemoryTaskManager.IdGeneratorOverflow {
+    void createSubtask() throws IdGenerator.IdGeneratorOverflow {
         String epicId = inMemoryTaskManager.generateId();
         inMemoryTaskManager.createEpic(new Epic(LEVEL_1_NAMES.get(1), LEVEL_1_DESCRIPTIONS.get(1), epicId));
         Assertions.assertEquals(epicId, inMemoryTaskManager.getEpicById(epicId).getId());
@@ -114,6 +138,8 @@ class InMemoryTaskManagerTest implements TestInputValues {
                         LEVEL_2_NAMES.get(1).get(0),
                         LEVEL_2_DESCRIPTIONS.get(1).get(0),
                         sub1Id,
+                        Duration.of(30, ChronoUnit.MINUTES),
+                        LocalDateTime.of(2024, 2, 20, 1, 0),
                         epicId
                 )
         );
@@ -123,6 +149,8 @@ class InMemoryTaskManagerTest implements TestInputValues {
                         LEVEL_2_NAMES.get(1).get(1),
                         LEVEL_2_DESCRIPTIONS.get(1).get(1),
                         sub2Id,
+                        Duration.of(30, ChronoUnit.MINUTES),
+                        LocalDateTime.of(2024, 2, 20, 1, 0),
                         epicId
                 )
         );
@@ -133,9 +161,13 @@ class InMemoryTaskManagerTest implements TestInputValues {
     }
 
     @Test
-    void updateTask() throws InMemoryTaskManager.IdGeneratorOverflow {
+    void updateTask() throws IdGenerator.IdGeneratorOverflow {
         String taskId = inMemoryTaskManager.generateId();
-        Task task = new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId);
+        Task task = new Task(LEVEL_1_NAMES.get(2),
+                LEVEL_1_DESCRIPTIONS.get(2),
+                taskId,
+                Duration.of(30, ChronoUnit.MINUTES),
+                LocalDateTime.of(2024, 2, 20, 1, 0));
         inMemoryTaskManager.createTask(task);
         task.setStatus(Status.DONE);
         inMemoryTaskManager.updateTask(task);
@@ -197,7 +229,7 @@ class InMemoryTaskManagerTest implements TestInputValues {
                 .getEpicById(
                         inMemoryTaskManager
                                 .getSubtaskById(existingSecondSubId)
-                                        .getEpicId()
+                                .getEpicId()
                 ).getSubtasks();
         Assertions.assertTrue(subs.contains(existingSub));
         for (Subtask sub : subs) {
@@ -210,14 +242,18 @@ class InMemoryTaskManagerTest implements TestInputValues {
                 inMemoryTaskManager.getEpicById(
                         inMemoryTaskManager
                                 .getSubtaskById(existingSecondSubId)
-                                        .getEpicId()
+                                .getEpicId()
                 ).getStatus());
     }
 
     @Test
-    void deleteTaskById() throws InMemoryTaskManager.IdGeneratorOverflow {
+    void deleteTaskById() throws IdGenerator.IdGeneratorOverflow {
         String taskId = inMemoryTaskManager.generateId();
-        inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId));
+        inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2),
+                LEVEL_1_DESCRIPTIONS.get(2),
+                taskId,
+                Duration.of(30, ChronoUnit.MINUTES),
+                LocalDateTime.of(2024, 2, 20, 1, 0)));
         Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).getId());
         inMemoryTaskManager.deleteTaskById(taskId);
         Assertions.assertNull(inMemoryTaskManager.getTaskById(taskId));
@@ -250,9 +286,13 @@ class InMemoryTaskManagerTest implements TestInputValues {
     }
 
     @Test
-    void deleteAllTasks() throws InMemoryTaskManager.IdGeneratorOverflow {
+    void deleteAllTasks() throws IdGenerator.IdGeneratorOverflow {
         String taskId = inMemoryTaskManager.generateId();
-        inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId));
+        inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2),
+                LEVEL_1_DESCRIPTIONS.get(2),
+                taskId,
+                Duration.of(30, ChronoUnit.MINUTES),
+                LocalDateTime.of(2024, 2, 20, 1, 0)));
         Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).getId());
         inMemoryTaskManager.deleteAllTasks();
         Assertions.assertTrue(inMemoryTaskManager.getAllTasks().isEmpty());
@@ -273,9 +313,13 @@ class InMemoryTaskManagerTest implements TestInputValues {
     }
 
     @Test
-    void getHistory() throws InMemoryTaskManager.IdGeneratorOverflow {
+    void getHistory() throws IdGenerator.IdGeneratorOverflow {
         String taskId = inMemoryTaskManager.generateId();
-        inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId));
+        inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2),
+                LEVEL_1_DESCRIPTIONS.get(2),
+                taskId,
+                Duration.of(30, ChronoUnit.MINUTES),
+                LocalDateTime.of(2024, 2, 20, 1, 0)));
         Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).getId());
         List<Task> called = List.of(inMemoryTaskManager.getTaskById(taskId),
                 inMemoryTaskManager.getEpicById(existingEpicId),

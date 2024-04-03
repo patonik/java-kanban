@@ -13,15 +13,19 @@ import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.*;
-import java.util.List;
-import java.util.Objects;
-import java.util.Properties;
-import java.util.StringJoiner;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 public class FileBackedTaskManager extends InMemoryTaskManager implements TaskManager, AutoCloseable {
+    private final Map<String, Task> tasks = new HashMap<>();
+    private final Map<String, Epic> epics = new HashMap<>();
+    private final Map<String, Subtask> subtasks = new HashMap<>();
     public static final String RECORD_SEPARATOR = String.valueOf(0x001E);
     private static final String PROP_RES = "filebackedtaskmanager.properties";
     public static final String LINE_SEPARATOR = "\r\n";
+    public static final DateTimeFormatter TASK_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
     private final Path saveFile;
     private final Path saveHistoryFile;
     private static boolean canBeHidden = false;
@@ -382,14 +386,20 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             case Task t -> TaskType.TASK;
             case null -> null;
         };
+        Duration taskDuration = task.getDuration();
+        String dur = taskDuration == null ? "" : taskDuration.toString();
+        LocalDateTime taskStartTime = task.getStartTime();
+        String time = taskStartTime == null ? "" : taskStartTime.format(TASK_TIME_FORMATTER);
         StringJoiner sj = new StringJoiner(RECORD_SEPARATOR)
-                .add(task.getId())
-                .add(type.toString())
-                .add(task.getTitle())
-                .add(task.getStatus().toString())
-                .add(task.getDescription().replaceAll(RECORD_SEPARATOR, ""));
+                .add(task.getId()) // 0
+                .add(type.toString()) // 1
+                .add(task.getTitle()) // 2
+                .add(task.getStatus().toString()) // 3
+                .add(task.getDescription().replaceAll(RECORD_SEPARATOR, "")) // 4
+                .add(dur) // 5
+                .add(time); // 6
         if (type.equals(TaskType.SUBTASK)) {
-            sj.add(((Subtask) task).getEpicId() + LINE_SEPARATOR);
+            sj.add(((Subtask) task).getEpicId() + LINE_SEPARATOR); // 7
         } else {
             sj.add(LINE_SEPARATOR);
         }
@@ -398,21 +408,25 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
 
     public void unstringify(String line) {
         String[] params = line.split(RECORD_SEPARATOR);
+        Duration duration = params[5].isEmpty() ? null : Duration.parse(params[5]);
+        LocalDateTime startTime = params[6].isEmpty() ? null : LocalDateTime.parse(params[6], TASK_TIME_FORMATTER);
         switch (TaskType.valueOf(params[1])) {
             case EPIC -> {
                 Epic epic = new Epic(params[2], params[4], params[0]);
                 epic.setStatus(Status.valueOf(params[3]));
-                createEpic(epic);
+                epic.setDuration(duration);
+                epic.setStartTime(startTime);
+                epics.put(epic.getId(), epic);
             }
             case SUBTASK -> {
-                Subtask subtask = new Subtask(params[2], params[4], params[0], params[5]);
+                Subtask subtask = new Subtask(params[2], params[4], params[0], duration, startTime, params[7]);
                 subtask.setStatus(Status.valueOf(params[3]));
-                createSubtask(subtask);
+                subtasks.put(subtask.getId(), subtask);
             }
             case TASK -> {
-                Task task = new Task(params[2], params[4], params[0]);
+                Task task = new Task(params[2], params[4], params[0], duration, startTime);
                 task.setStatus(Status.valueOf(params[3]));
-                createTask(task);
+                tasks.put(task.getId(), task);
             }
         }
     }
@@ -531,36 +545,39 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
     }
 
     @Override
-    public void deleteAllTasks() {
-        super.deleteAllTasks();
+    public boolean deleteAllTasks() {
+        boolean allCleaned = super.deleteAllTasks();
         try {
             save();
             saveHistory();
         } catch (ManagerSaveException e) {
             e.printStackTrace();
         }
+        return allCleaned;
     }
 
     @Override
-    public void deleteAllEpics() {
-        super.deleteAllEpics();
+    public boolean deleteAllEpics() {
+        boolean allCleaned = super.deleteAllEpics();
         try {
             save();
             saveHistory();
         } catch (ManagerSaveException e) {
             e.printStackTrace();
         }
+        return allCleaned;
     }
 
     @Override
-    public void deleteAllSubTasks() {
-        super.deleteAllSubTasks();
+    public boolean deleteAllSubTasks() {
+        boolean allCleaned = super.deleteAllSubTasks();
         try {
             save();
             saveHistory();
         } catch (ManagerSaveException e) {
             e.printStackTrace();
         }
+        return allCleaned;
     }
 
     public enum TaskType {
