@@ -6,12 +6,12 @@ import org.my.task.Subtask;
 import org.my.task.Task;
 import org.my.util.IdGenerator;
 
-import javax.swing.text.html.Option;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class InMemoryTaskManager implements TaskManager {
     private final Map<String, Task> tasks = new HashMap<>();
@@ -50,7 +50,7 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public Optional<Task> getTaskById(String id) {
         Task found = tasks.get(id);
-        if (found == null) return null;
+        if (found == null) return Optional.empty();
         Task task = found.clone();
         historyManager.addTask(task);
         return Optional.of(task);
@@ -59,7 +59,7 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public Optional<Epic> getEpicById(String id) {
         Epic found = epics.get(id);
-        if (found == null) return null;
+        if (found == null) return Optional.empty();
         Epic epic = (Epic) found.clone();
         historyManager.addTask(epic);
         return Optional.of(epic);
@@ -68,10 +68,15 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public Optional<Subtask> getSubtaskById(String id) {
         Subtask found = subtasks.get(id);
-        if (found == null) return null;
+        if (found == null) return Optional.empty();
         Subtask sub = (Subtask) found.clone();
         historyManager.addTask(sub);
         return Optional.of(sub);
+    }
+
+    public List<Task> getPrioritizedTasks() {
+        return Stream.concat(tasks.values().parallelStream(), subtasks.values().parallelStream())
+                .sorted(Comparator.comparing(Task::getStartTime)).toList();
     }
 
     @Override
@@ -111,7 +116,7 @@ public class InMemoryTaskManager implements TaskManager {
                 return null;
             }
             if (midYear.get(midStart, midEnd).isEmpty() && !overlapForbidden) {
-                throw null;
+                return null;
             }
             intervals.put(taskStartYear + i, new int[]{midStart, midEnd});
         }
