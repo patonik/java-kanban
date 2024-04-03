@@ -56,6 +56,8 @@ public class FileBackedTaskManagerTest {
                             LEVEL_2_NAMES.getFirst().getFirst(),
                             LEVEL_2_DESCRIPTIONS.getFirst().getFirst(),
                             existingFirstSubId = fileBackedTaskManager.generateId(),
+                            Duration.of(30, ChronoUnit.MINUTES),
+                            LocalDateTime.of(2024, 2, 20, 1, 0),
                             existingEpicId
                     )
             );
@@ -64,6 +66,8 @@ public class FileBackedTaskManagerTest {
                             LEVEL_2_NAMES.getFirst().get(1),
                             LEVEL_2_DESCRIPTIONS.getFirst().get(1),
                             existingSecondSubId = fileBackedTaskManager.generateId(),
+                            Duration.of(30, ChronoUnit.MINUTES),
+                            LocalDateTime.of(2024, 2, 20, 1, 0),
                             existingEpicId
                     )
             );
@@ -105,7 +109,8 @@ public class FileBackedTaskManagerTest {
         fileBackedTaskManager.createTask(task);
         task.setStatus(Status.DONE);
         fileBackedTaskManager.updateTask(task);
-        Assertions.assertEquals(Status.DONE, fileBackedTaskManager.getTaskById(taskId).getStatus());
+        assert fileBackedTaskManager.getTaskById(taskId).isPresent();
+        Assertions.assertEquals(Status.DONE, fileBackedTaskManager.getTaskById(taskId).get().getStatus());
         fileBackedTaskManager.close();
         Assertions.assertTrue(Files.exists(saveFile));
         Assertions.assertTrue(Files.isReadable(saveFile));
@@ -136,7 +141,8 @@ public class FileBackedTaskManagerTest {
         fileBackedTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
                 LocalDateTime.of(2024, 2, 20, 1, 0)));
-        Assertions.assertEquals(taskId, fileBackedTaskManager.getTaskById(taskId).getId());
+        assert fileBackedTaskManager.getTaskById(taskId).isPresent();
+        Assertions.assertEquals(taskId, fileBackedTaskManager.getTaskById(taskId).get().getId());
         fileBackedTaskManager.deleteTaskById(taskId);
         Assertions.assertNull(fileBackedTaskManager.getTaskById(taskId));
         BufferedReader br = new BufferedReader(new FileReader(saveFile.toFile()));
@@ -163,7 +169,8 @@ public class FileBackedTaskManagerTest {
         fileBackedTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
                 LocalDateTime.of(2024, 2, 20, 1, 0)));
-        Assertions.assertEquals(taskId, fileBackedTaskManager.getTaskById(taskId).getId());
+        assert fileBackedTaskManager.getTaskById(taskId).isPresent();
+        Assertions.assertEquals(taskId, fileBackedTaskManager.getTaskById(taskId).get().getId());
         fileBackedTaskManager.deleteAllTasks();
         Assertions.assertTrue(fileBackedTaskManager.getAllTasks().isEmpty());
         BufferedReader br = new BufferedReader(new FileReader(saveFile.toFile()));

@@ -6,6 +6,7 @@ import org.my.task.Subtask;
 import org.my.task.Task;
 import org.my.util.IdGenerator;
 
+import javax.swing.text.html.Option;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.Year;
@@ -47,30 +48,30 @@ public class InMemoryTaskManager implements TaskManager {
     }
 
     @Override
-    public Task getTaskById(String id) {
+    public Optional<Task> getTaskById(String id) {
         Task found = tasks.get(id);
         if (found == null) return null;
         Task task = found.clone();
         historyManager.addTask(task);
-        return task;
+        return Optional.of(task);
     }
 
     @Override
-    public Epic getEpicById(String id) {
+    public Optional<Epic> getEpicById(String id) {
         Epic found = epics.get(id);
         if (found == null) return null;
         Epic epic = (Epic) found.clone();
         historyManager.addTask(epic);
-        return epic;
+        return Optional.of(epic);
     }
 
     @Override
-    public Subtask getSubtaskById(String id) {
+    public Optional<Subtask> getSubtaskById(String id) {
         Subtask found = subtasks.get(id);
         if (found == null) return null;
-        Subtask task = (Subtask) found.clone();
-        historyManager.addTask(task);
-        return task;
+        Subtask sub = (Subtask) found.clone();
+        historyManager.addTask(sub);
+        return Optional.of(sub);
     }
 
     @Override

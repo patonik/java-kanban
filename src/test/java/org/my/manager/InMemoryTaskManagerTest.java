@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Objects;
 
 class InMemoryTaskManagerTest implements TestInputValues {
     private InMemoryTaskManager inMemoryTaskManager;
@@ -76,15 +77,18 @@ class InMemoryTaskManagerTest implements TestInputValues {
     @Test
     void getAllEpics() {
         List<Epic> taskList = inMemoryTaskManager.getAllEpics();
-        Assertions.assertTrue(taskList.contains(inMemoryTaskManager.getEpicById(existingEpicId)));
+        assert inMemoryTaskManager.getEpicById(existingEpicId).isPresent();
+        Assertions.assertTrue(taskList.contains(inMemoryTaskManager.getEpicById(existingEpicId).get()));
     }
 
     @Test
     void getAllSubtasks() {
         List<Subtask> taskList = inMemoryTaskManager.getAllSubtasks();
+        assert inMemoryTaskManager.getSubtaskById(existingFirstSubId).isPresent();
+        assert inMemoryTaskManager.getSubtaskById(existingSecondSubId).isPresent();
         Assertions.assertTrue(
-                taskList.contains(inMemoryTaskManager.getSubtaskById(existingFirstSubId)) &&
-                        taskList.contains(inMemoryTaskManager.getSubtaskById(existingSecondSubId)));
+                taskList.contains(inMemoryTaskManager.getSubtaskById(existingFirstSubId).get()) &&
+                        taskList.contains(inMemoryTaskManager.getSubtaskById(existingSecondSubId).get()));
     }
 
     @Test
@@ -95,18 +99,22 @@ class InMemoryTaskManagerTest implements TestInputValues {
                 taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
                 LocalDateTime.of(2024, 2, 20, 1, 0)));
-        Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).getId());
+        assert inMemoryTaskManager.getTaskById(taskId).isPresent();
+        Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).get().getId());
     }
 
     @Test
     void getEpicById() {
-        Assertions.assertEquals(existingEpicId, inMemoryTaskManager.getEpicById(existingEpicId).getId());
+        assert inMemoryTaskManager.getEpicById(existingEpicId).isPresent();
+        Assertions.assertEquals(existingEpicId, inMemoryTaskManager.getEpicById(existingEpicId).get().getId());
     }
 
     @Test
     void getSubtaskById() {
-        Assertions.assertEquals(existingFirstSubId, inMemoryTaskManager.getSubtaskById(existingFirstSubId).getId());
-        Assertions.assertEquals(existingSecondSubId, inMemoryTaskManager.getSubtaskById(existingSecondSubId).getId());
+        assert inMemoryTaskManager.getSubtaskById(existingFirstSubId).isPresent();
+        assert inMemoryTaskManager.getSubtaskById(existingSecondSubId).isPresent();
+        Assertions.assertEquals(existingFirstSubId, inMemoryTaskManager.getSubtaskById(existingFirstSubId).get().getId());
+        Assertions.assertEquals(existingSecondSubId, inMemoryTaskManager.getSubtaskById(existingSecondSubId).get().getId());
     }
 
     @Test
@@ -117,21 +125,23 @@ class InMemoryTaskManagerTest implements TestInputValues {
                 taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
                 LocalDateTime.of(2024, 2, 20, 1, 0)));
-        Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).getId());
+        assert inMemoryTaskManager.getTaskById(taskId).isPresent();
+        Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).get().getId());
     }
 
     @Test
     void createEpic() throws IdGenerator.IdGeneratorOverflow {
         String epicId = inMemoryTaskManager.generateId();
         inMemoryTaskManager.createEpic(new Epic(LEVEL_1_NAMES.get(1), LEVEL_1_DESCRIPTIONS.get(1), epicId));
-        Assertions.assertEquals(epicId, inMemoryTaskManager.getEpicById(epicId).getId());
+        assert inMemoryTaskManager.getEpicById(epicId).isPresent();
+        Assertions.assertEquals(epicId, inMemoryTaskManager.getEpicById(epicId).get().getId());
     }
 
     @Test
     void createSubtask() throws IdGenerator.IdGeneratorOverflow {
         String epicId = inMemoryTaskManager.generateId();
         inMemoryTaskManager.createEpic(new Epic(LEVEL_1_NAMES.get(1), LEVEL_1_DESCRIPTIONS.get(1), epicId));
-        Assertions.assertEquals(epicId, inMemoryTaskManager.getEpicById(epicId).getId());
+        Assertions.assertEquals(epicId, inMemoryTaskManager.getEpicById(epicId).get().getId());
         String sub1Id = inMemoryTaskManager.generateId();
         inMemoryTaskManager.createSubtask(
                 new Subtask(
@@ -154,10 +164,13 @@ class InMemoryTaskManagerTest implements TestInputValues {
                         epicId
                 )
         );
-        Assertions.assertEquals(sub1Id, inMemoryTaskManager.getSubtaskById(sub1Id).getId());
-        Assertions.assertEquals(sub1Id, inMemoryTaskManager.getSubtasksOfEpic(inMemoryTaskManager.getEpicById(epicId)).get(0).getId());
-        Assertions.assertEquals(sub2Id, inMemoryTaskManager.getSubtaskById(sub2Id).getId());
-        Assertions.assertEquals(sub2Id, inMemoryTaskManager.getSubtasksOfEpic(inMemoryTaskManager.getEpicById(epicId)).get(1).getId());
+        assert inMemoryTaskManager.getSubtaskById(sub1Id).isPresent();
+        assert inMemoryTaskManager.getSubtaskById(sub2Id).isPresent();
+        assert inMemoryTaskManager.getEpicById(epicId).isPresent();
+        Assertions.assertEquals(sub1Id, inMemoryTaskManager.getSubtaskById(sub1Id).get().getId());
+        Assertions.assertEquals(sub1Id, inMemoryTaskManager.getSubtasksOfEpic(inMemoryTaskManager.getEpicById(epicId).get()).get(0).getId());
+        Assertions.assertEquals(sub2Id, inMemoryTaskManager.getSubtaskById(sub2Id).get().getId());
+        Assertions.assertEquals(sub2Id, inMemoryTaskManager.getSubtasksOfEpic(inMemoryTaskManager.getEpicById(epicId).get()).get(1).getId());
     }
 
     @Test
@@ -171,38 +184,42 @@ class InMemoryTaskManagerTest implements TestInputValues {
         inMemoryTaskManager.createTask(task);
         task.setStatus(Status.DONE);
         inMemoryTaskManager.updateTask(task);
-        Assertions.assertEquals(Status.DONE, inMemoryTaskManager.getTaskById(taskId).getStatus());
+        assert inMemoryTaskManager.getTaskById(taskId).isPresent();
+        Assertions.assertEquals(Status.DONE, inMemoryTaskManager.getTaskById(taskId).get().getStatus());
     }
 
     @Test
     void updateEpic() {
-        Epic existingEpic = inMemoryTaskManager.getEpicById(existingEpicId);
+        assert inMemoryTaskManager.getEpicById(existingEpicId).isPresent();
+        Epic existingEpic = inMemoryTaskManager.getEpicById(existingEpicId).get();
         existingEpic.setStatus(Status.NEW);
         inMemoryTaskManager.updateEpic(existingEpic);
-        Assertions.assertEquals(Status.NEW, inMemoryTaskManager.getEpicById(existingEpicId).getStatus());
+        Assertions.assertEquals(Status.NEW, inMemoryTaskManager.getEpicById(existingEpicId).get().getStatus());
         existingEpic.setStatus(Status.IN_PROGRESS);
         inMemoryTaskManager.updateEpic(existingEpic);
-        Assertions.assertEquals(Status.NEW, inMemoryTaskManager.getEpicById(existingEpicId).getStatus());
+        Assertions.assertEquals(Status.NEW, inMemoryTaskManager.getEpicById(existingEpicId).get().getStatus());
         existingEpic.setStatus(Status.DONE);
         inMemoryTaskManager.updateEpic(existingEpic);
-        Assertions.assertEquals(Status.NEW, inMemoryTaskManager.getEpicById(existingEpicId).getStatus());
+        Assertions.assertEquals(Status.NEW, inMemoryTaskManager.getEpicById(existingEpicId).get().getStatus());
     }
 
     @Test
     void updateSubtask() {
         //changing first sub
-        Subtask existingSub = inMemoryTaskManager.getSubtaskById(existingFirstSubId);
+        assert inMemoryTaskManager.getSubtaskById(existingFirstSubId).isPresent();
+        Subtask existingSub = inMemoryTaskManager.getSubtaskById(existingFirstSubId).get();
         existingSub.setStatus(Status.IN_PROGRESS);
         inMemoryTaskManager.updateSubtask(existingSub);
         //subtask in repository changed
-        Assertions.assertEquals(existingSub.getStatus(), inMemoryTaskManager.getSubtaskById(existingFirstSubId).getStatus());
+        Assertions.assertEquals(existingSub.getStatus(), inMemoryTaskManager.getSubtaskById(existingFirstSubId).get().getStatus());
         //subtask's epic contains new sub
-        List<Subtask> subs = inMemoryTaskManager
-                .getEpicById(
-                        inMemoryTaskManager
-                                .getSubtaskById(existingFirstSubId)
-                                .getEpicId()
-                ).getSubtasks();
+        assert inMemoryTaskManager.getSubtaskById(existingFirstSubId).isPresent();
+        String epicId = inMemoryTaskManager
+                .getSubtaskById(existingFirstSubId)
+                .get()
+                .getEpicId();
+        assert inMemoryTaskManager.getEpicById(epicId).isPresent();
+        List<Subtask> subs = inMemoryTaskManager.getEpicById(epicId).get().getSubtasks();
         Assertions.assertTrue(subs.contains(existingSub));
         for (Subtask sub : subs) {
             if (sub.equals(existingSub)) {
@@ -210,27 +227,28 @@ class InMemoryTaskManagerTest implements TestInputValues {
             }
         }
         //subtask's epic status changed
+        epicId = inMemoryTaskManager.getSubtaskById(existingFirstSubId)
+                .get()
+                .getEpicId();
+        assert inMemoryTaskManager.getEpicById(epicId).isPresent();
         Assertions.assertEquals(existingSub.getStatus(),
-                inMemoryTaskManager
-                        .getEpicById(
-                                inMemoryTaskManager
-                                        .getSubtaskById(existingFirstSubId)
-                                        .getEpicId()
-                        ).getStatus());
+                inMemoryTaskManager.getEpicById(epicId).get().getStatus());
 
         //changing second sub
-        existingSub = inMemoryTaskManager.getSubtaskById(existingSecondSubId);
+        assert inMemoryTaskManager.getSubtaskById(existingSecondSubId).isPresent();
+        existingSub = inMemoryTaskManager.getSubtaskById(existingSecondSubId).get();
         existingSub.setStatus(Status.DONE);
         inMemoryTaskManager.updateSubtask(existingSub);
         //subtask in repository changed
-        Assertions.assertEquals(existingSub.getStatus(), inMemoryTaskManager.getSubtaskById(existingSecondSubId).getStatus());
+        Assertions.assertEquals(existingSub.getStatus(), inMemoryTaskManager.getSubtaskById(existingSecondSubId).get().getStatus());
         //subtask's epic contains new sub
+        epicId = inMemoryTaskManager
+                .getSubtaskById(existingSecondSubId)
+                .get()
+                .getEpicId();
+        assert inMemoryTaskManager.getEpicById(epicId).isPresent();
         subs = inMemoryTaskManager
-                .getEpicById(
-                        inMemoryTaskManager
-                                .getSubtaskById(existingSecondSubId)
-                                .getEpicId()
-                ).getSubtasks();
+                .getEpicById(epicId).get().getSubtasks();
         Assertions.assertTrue(subs.contains(existingSub));
         for (Subtask sub : subs) {
             if (sub.equals(existingSub)) {
@@ -238,12 +256,12 @@ class InMemoryTaskManagerTest implements TestInputValues {
             }
         }
         //subtask's epic status changed
+        epicId = inMemoryTaskManager
+                .getSubtaskById(existingSecondSubId)
+                .get()
+                .getEpicId();
         Assertions.assertEquals(Status.IN_PROGRESS,
-                inMemoryTaskManager.getEpicById(
-                        inMemoryTaskManager
-                                .getSubtaskById(existingSecondSubId)
-                                .getEpicId()
-                ).getStatus());
+                inMemoryTaskManager.getEpicById(epicId).get().getStatus());
     }
 
     @Test
@@ -254,7 +272,9 @@ class InMemoryTaskManagerTest implements TestInputValues {
                 taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
                 LocalDateTime.of(2024, 2, 20, 1, 0)));
-        Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).getId());
+        assert inMemoryTaskManager.getTaskById(taskId).isPresent();
+        assert inMemoryTaskManager.getTaskById(taskId).isPresent();
+        Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).get().getId());
         inMemoryTaskManager.deleteTaskById(taskId);
         Assertions.assertNull(inMemoryTaskManager.getTaskById(taskId));
 
@@ -270,16 +290,19 @@ class InMemoryTaskManagerTest implements TestInputValues {
 
     @Test
     void deleteSubtaskById() {
-        Subtask sub = inMemoryTaskManager.getSubtaskById(existingFirstSubId);
+        assert inMemoryTaskManager.getSubtaskById(existingFirstSubId).isPresent();
+        Subtask sub = inMemoryTaskManager.getSubtaskById(existingFirstSubId).get();
         inMemoryTaskManager.deleteSubtaskById(existingFirstSubId);
-        Assertions.assertFalse(inMemoryTaskManager.getEpicById(existingEpicId).getSubtasks().contains(sub));
+        assert inMemoryTaskManager.getEpicById(existingEpicId).isPresent();
+        Assertions.assertFalse(inMemoryTaskManager.getEpicById(existingEpicId).get().getSubtasks().contains(sub));
         Assertions.assertNull(inMemoryTaskManager.getSubtaskById(existingFirstSubId));
         Assertions.assertFalse(inMemoryTaskManager.getAllSubtasks().contains(sub));
     }
 
     @Test
     void getSubtasksOfEpic() {
-        List<Subtask> subs = inMemoryTaskManager.getSubtasksOfEpic(inMemoryTaskManager.getEpicById(existingEpicId));
+        assert inMemoryTaskManager.getEpicById(existingEpicId).isPresent();
+        List<Subtask> subs = inMemoryTaskManager.getSubtasksOfEpic(inMemoryTaskManager.getEpicById(existingEpicId).get());
         for (Subtask sub : subs) {
             Assertions.assertTrue(sub.getId().equals(existingFirstSubId) || sub.getId().equals(existingSecondSubId));
         }
@@ -293,7 +316,8 @@ class InMemoryTaskManagerTest implements TestInputValues {
                 taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
                 LocalDateTime.of(2024, 2, 20, 1, 0)));
-        Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).getId());
+        assert inMemoryTaskManager.getTaskById(taskId).isPresent();
+        Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).get().getId());
         inMemoryTaskManager.deleteAllTasks();
         Assertions.assertTrue(inMemoryTaskManager.getAllTasks().isEmpty());
     }
@@ -309,7 +333,8 @@ class InMemoryTaskManagerTest implements TestInputValues {
     void deleteAllSubTasks() {
         inMemoryTaskManager.deleteAllSubTasks();
         Assertions.assertTrue(inMemoryTaskManager.getAllSubtasks().isEmpty());
-        Assertions.assertTrue(inMemoryTaskManager.getEpicById(existingEpicId).getSubtasks().isEmpty());
+        assert inMemoryTaskManager.getEpicById(existingEpicId).isPresent();
+        Assertions.assertTrue(inMemoryTaskManager.getEpicById(existingEpicId).get().getSubtasks().isEmpty());
     }
 
     @Test
@@ -320,11 +345,12 @@ class InMemoryTaskManagerTest implements TestInputValues {
                 taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
                 LocalDateTime.of(2024, 2, 20, 1, 0)));
-        Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).getId());
-        List<Task> called = List.of(inMemoryTaskManager.getTaskById(taskId),
-                inMemoryTaskManager.getEpicById(existingEpicId),
-                inMemoryTaskManager.getSubtaskById(existingFirstSubId),
-                inMemoryTaskManager.getSubtaskById(existingSecondSubId));
+        assert inMemoryTaskManager.getTaskById(taskId).isPresent();
+        Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).get().getId());
+        List<Task> called = List.of(Objects.requireNonNull(inMemoryTaskManager.getTaskById(taskId).orElse(null)),
+                Objects.requireNonNull(inMemoryTaskManager.getEpicById(existingEpicId).orElse(null)),
+                Objects.requireNonNull(inMemoryTaskManager.getSubtaskById(existingFirstSubId).orElse(null)),
+                Objects.requireNonNull(inMemoryTaskManager.getSubtaskById(existingSecondSubId).orElse(null)));
         List<? extends Task> historyList = inMemoryTaskManager.getHistory();
         //called tasks are added to history and put in the order they were called in
         for (int i = 1; i < called.size(); i++) {
