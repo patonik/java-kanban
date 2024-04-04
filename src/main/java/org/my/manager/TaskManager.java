@@ -26,11 +26,11 @@ public interface TaskManager {
 
     boolean createSubtask(Subtask subtask);
 
-    void updateTask(Task task);
+    boolean updateTask(Task task);
 
-    void updateEpic(Epic epic);
+    boolean updateEpic(Epic epic);
 
-    void updateSubtask(Subtask subtask);
+    boolean updateSubtask(Subtask subtask);
 
     Task deleteTaskById(String id);
 

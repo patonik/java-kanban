@@ -67,7 +67,7 @@ public class FileBackedTaskManagerTest {
                             LEVEL_2_DESCRIPTIONS.getFirst().get(1),
                             existingSecondSubId = fileBackedTaskManager.generateId(),
                             Duration.of(30, ChronoUnit.MINUTES),
-                            LocalDateTime.of(2024, 2, 20, 1, 0),
+                            LocalDateTime.of(2024, 2, 20, 1, 30),
                             existingEpicId
                     )
             );
@@ -79,11 +79,11 @@ public class FileBackedTaskManagerTest {
     @Test
     void createTask() throws Exception {
         String taskId = fileBackedTaskManager.generateId();
-        fileBackedTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2),
+        Assertions.assertTrue(fileBackedTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2),
                 LEVEL_1_DESCRIPTIONS.get(2),
                 taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
-                LocalDateTime.of(2024, 2, 20, 1, 0)));
+                LocalDateTime.of(2024, 2, 20, 2, 0))));
         List<Task> taskList = fileBackedTaskManager.getAllTasks();
         Assertions.assertFalse(taskList.isEmpty());
         Assertions.assertTrue(Files.exists(saveFile));
@@ -103,9 +103,10 @@ public class FileBackedTaskManagerTest {
     @Test
     void updateTask() throws Exception {
         String taskId = fileBackedTaskManager.generateId();
+        //without overlap
         Task task = new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
-                LocalDateTime.of(2024, 2, 20, 1, 0));
+                LocalDateTime.of(2024, 2, 20, 2, 30));
         fileBackedTaskManager.createTask(task);
         task.setStatus(Status.DONE);
         fileBackedTaskManager.updateTask(task);
@@ -140,11 +141,11 @@ public class FileBackedTaskManagerTest {
         String taskId = fileBackedTaskManager.generateId();
         fileBackedTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
-                LocalDateTime.of(2024, 2, 20, 1, 0)));
+                LocalDateTime.of(2024, 2, 20, 3, 0)));
         assert fileBackedTaskManager.getTaskById(taskId).isPresent();
         Assertions.assertEquals(taskId, fileBackedTaskManager.getTaskById(taskId).get().getId());
         fileBackedTaskManager.deleteTaskById(taskId);
-        Assertions.assertNull(fileBackedTaskManager.getTaskById(taskId));
+        Assertions.assertFalse(fileBackedTaskManager.getTaskById(taskId).isPresent());
         BufferedReader br = new BufferedReader(new FileReader(saveFile.toFile()));
         List<String> lines = new ArrayList<>();
         while (br.ready()) {
@@ -166,9 +167,10 @@ public class FileBackedTaskManagerTest {
     @Test
     void deleteAllTasks() throws IdGenerator.IdGeneratorOverflow, IOException {
         String taskId = fileBackedTaskManager.generateId();
-        fileBackedTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId,
+        //can create task successfully without overlap
+        Assertions.assertTrue(fileBackedTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2), LEVEL_1_DESCRIPTIONS.get(2), taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
-                LocalDateTime.of(2024, 2, 20, 1, 0)));
+                LocalDateTime.of(2024, 2, 20, 3, 30))));
         assert fileBackedTaskManager.getTaskById(taskId).isPresent();
         Assertions.assertEquals(taskId, fileBackedTaskManager.getTaskById(taskId).get().getId());
         fileBackedTaskManager.deleteAllTasks();

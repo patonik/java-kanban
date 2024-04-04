@@ -10,9 +10,10 @@ import org.my.util.IdGenerator;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Objects;
+import java.util.Optional;
 
 class InMemoryTaskManagerTest implements TestInputValues {
     private InMemoryTaskManager inMemoryTaskManager;
@@ -47,7 +48,7 @@ class InMemoryTaskManagerTest implements TestInputValues {
                             LEVEL_2_DESCRIPTIONS.getFirst().get(1),
                             existingSecondSubId = inMemoryTaskManager.generateId(),
                             Duration.of(30, ChronoUnit.MINUTES),
-                            LocalDateTime.of(2024, 2, 20, 1, 0),
+                            LocalDateTime.of(2024, 2, 20, 1, 30),
                             existingEpicId
                     )
             );
@@ -61,6 +62,7 @@ class InMemoryTaskManagerTest implements TestInputValues {
         List<Task> taskList = inMemoryTaskManager.getAllTasks();
         Assertions.assertTrue(taskList.isEmpty());
         String taskId = inMemoryTaskManager.generateId();
+        //try to create task with overlapping interval
         inMemoryTaskManager.createTask(
                 new Task(
                         LEVEL_1_NAMES.get(2),
@@ -68,6 +70,18 @@ class InMemoryTaskManagerTest implements TestInputValues {
                         taskId,
                         Duration.of(30, ChronoUnit.MINUTES),
                         LocalDateTime.of(2024, 2, 20, 1, 0)
+                )
+        );
+        taskList = inMemoryTaskManager.getAllTasks();
+        Assertions.assertTrue(taskList.isEmpty());
+        //try to create task without overlapping interval
+        inMemoryTaskManager.createTask(
+                new Task(
+                        LEVEL_1_NAMES.get(2),
+                        LEVEL_1_DESCRIPTIONS.get(2),
+                        taskId,
+                        Duration.of(30, ChronoUnit.MINUTES),
+                        LocalDateTime.of(2024, 2, 20, 2, 0)
                 )
         );
         taskList = inMemoryTaskManager.getAllTasks();
@@ -94,11 +108,12 @@ class InMemoryTaskManagerTest implements TestInputValues {
     @Test
     void getTaskById() throws IdGenerator.IdGeneratorOverflow {
         String taskId = inMemoryTaskManager.generateId();
+        //create without overlap
         inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2),
                 LEVEL_1_DESCRIPTIONS.get(2),
                 taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
-                LocalDateTime.of(2024, 2, 20, 1, 0)));
+                LocalDateTime.of(2024, 2, 20, 2, 0)));
         assert inMemoryTaskManager.getTaskById(taskId).isPresent();
         Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).get().getId());
     }
@@ -120,11 +135,12 @@ class InMemoryTaskManagerTest implements TestInputValues {
     @Test
     void createTask() throws IdGenerator.IdGeneratorOverflow {
         String taskId = inMemoryTaskManager.generateId();
+        //create task without overlapping
         inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2),
                 LEVEL_1_DESCRIPTIONS.get(2),
                 taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
-                LocalDateTime.of(2024, 2, 20, 1, 0)));
+                LocalDateTime.of(2024, 2, 20, 2, 0)));
         assert inMemoryTaskManager.getTaskById(taskId).isPresent();
         Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).get().getId());
     }
@@ -143,24 +159,26 @@ class InMemoryTaskManagerTest implements TestInputValues {
         inMemoryTaskManager.createEpic(new Epic(LEVEL_1_NAMES.get(1), LEVEL_1_DESCRIPTIONS.get(1), epicId));
         Assertions.assertEquals(epicId, inMemoryTaskManager.getEpicById(epicId).get().getId());
         String sub1Id = inMemoryTaskManager.generateId();
+        //create not overlapping subtask
         inMemoryTaskManager.createSubtask(
                 new Subtask(
                         LEVEL_2_NAMES.get(1).get(0),
                         LEVEL_2_DESCRIPTIONS.get(1).get(0),
                         sub1Id,
                         Duration.of(30, ChronoUnit.MINUTES),
-                        LocalDateTime.of(2024, 2, 20, 1, 0),
+                        LocalDateTime.of(2024, 2, 20, 2, 0),
                         epicId
                 )
         );
         String sub2Id = inMemoryTaskManager.generateId();
+        //create not overlapping subtask
         inMemoryTaskManager.createSubtask(
                 new Subtask(
                         LEVEL_2_NAMES.get(1).get(1),
                         LEVEL_2_DESCRIPTIONS.get(1).get(1),
                         sub2Id,
                         Duration.of(30, ChronoUnit.MINUTES),
-                        LocalDateTime.of(2024, 2, 20, 1, 0),
+                        LocalDateTime.of(2024, 2, 20, 2, 30),
                         epicId
                 )
         );
@@ -176,11 +194,12 @@ class InMemoryTaskManagerTest implements TestInputValues {
     @Test
     void updateTask() throws IdGenerator.IdGeneratorOverflow {
         String taskId = inMemoryTaskManager.generateId();
+        //create not overlapping task
         Task task = new Task(LEVEL_1_NAMES.get(2),
                 LEVEL_1_DESCRIPTIONS.get(2),
                 taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
-                LocalDateTime.of(2024, 2, 20, 1, 0));
+                LocalDateTime.of(2024, 2, 20, 2, 0));
         inMemoryTaskManager.createTask(task);
         task.setStatus(Status.DONE);
         inMemoryTaskManager.updateTask(task);
@@ -267,35 +286,42 @@ class InMemoryTaskManagerTest implements TestInputValues {
     @Test
     void deleteTaskById() throws IdGenerator.IdGeneratorOverflow {
         String taskId = inMemoryTaskManager.generateId();
+        //without overlap
         inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2),
                 LEVEL_1_DESCRIPTIONS.get(2),
                 taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
-                LocalDateTime.of(2024, 2, 20, 1, 0)));
+                LocalDateTime.of(2024, 2, 20, 2, 0)));
         assert inMemoryTaskManager.getTaskById(taskId).isPresent();
         assert inMemoryTaskManager.getTaskById(taskId).isPresent();
         Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).get().getId());
         inMemoryTaskManager.deleteTaskById(taskId);
-        Assertions.assertNull(inMemoryTaskManager.getTaskById(taskId));
+        Assertions.assertFalse(inMemoryTaskManager.getTaskById(taskId).isPresent());
 
     }
 
     @Test
     void deleteEpicById() {
         inMemoryTaskManager.deleteEpicById(existingEpicId);
-        Assertions.assertNull(inMemoryTaskManager.getEpicById(existingEpicId));
-        Assertions.assertNull(inMemoryTaskManager.getSubtaskById(existingSecondSubId));
-        Assertions.assertNull(inMemoryTaskManager.getSubtaskById(existingFirstSubId));
+        Assertions.assertFalse(inMemoryTaskManager.getEpicById(existingEpicId).isPresent());
+        Assertions.assertFalse(inMemoryTaskManager.getSubtaskById(existingSecondSubId).isPresent());
+        Assertions.assertFalse(inMemoryTaskManager.getSubtaskById(existingFirstSubId).isPresent());
     }
 
     @Test
     void deleteSubtaskById() {
-        assert inMemoryTaskManager.getSubtaskById(existingFirstSubId).isPresent();
-        Subtask sub = inMemoryTaskManager.getSubtaskById(existingFirstSubId).get();
-        inMemoryTaskManager.deleteSubtaskById(existingFirstSubId);
-        assert inMemoryTaskManager.getEpicById(existingEpicId).isPresent();
-        Assertions.assertFalse(inMemoryTaskManager.getEpicById(existingEpicId).get().getSubtasks().contains(sub));
-        Assertions.assertNull(inMemoryTaskManager.getSubtaskById(existingFirstSubId));
+        Optional<Subtask> optionalSubtask = inMemoryTaskManager.getSubtaskById(existingFirstSubId);
+        Assertions.assertTrue(optionalSubtask.isPresent());
+        Subtask sub = optionalSubtask.get();
+        //successful deletion
+        Assertions.assertNotNull(inMemoryTaskManager.deleteSubtaskById(existingFirstSubId));
+        //epic is left after sub's deletion
+        Optional<Epic> optionalEpic = inMemoryTaskManager.getEpicById(existingEpicId);
+        Assertions.assertTrue(optionalEpic.isPresent());
+        //and does not contain deleted sub
+        Assertions.assertFalse(optionalEpic.get().getSubtasks().contains(sub));
+        //sub is no longer in repository
+        Assertions.assertFalse(inMemoryTaskManager.getSubtaskById(existingFirstSubId).isPresent());
         Assertions.assertFalse(inMemoryTaskManager.getAllSubtasks().contains(sub));
     }
 
@@ -311,11 +337,12 @@ class InMemoryTaskManagerTest implements TestInputValues {
     @Test
     void deleteAllTasks() throws IdGenerator.IdGeneratorOverflow {
         String taskId = inMemoryTaskManager.generateId();
+        //create not overlapping task
         inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2),
                 LEVEL_1_DESCRIPTIONS.get(2),
                 taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
-                LocalDateTime.of(2024, 2, 20, 1, 0)));
+                LocalDateTime.of(2024, 2, 20, 2, 0)));
         assert inMemoryTaskManager.getTaskById(taskId).isPresent();
         Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).get().getId());
         inMemoryTaskManager.deleteAllTasks();
@@ -340,21 +367,57 @@ class InMemoryTaskManagerTest implements TestInputValues {
     @Test
     void getHistory() throws IdGenerator.IdGeneratorOverflow {
         String taskId = inMemoryTaskManager.generateId();
+        //without overlap
         inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2),
                 LEVEL_1_DESCRIPTIONS.get(2),
                 taskId,
                 Duration.of(30, ChronoUnit.MINUTES),
-                LocalDateTime.of(2024, 2, 20, 1, 0)));
-        assert inMemoryTaskManager.getTaskById(taskId).isPresent();
-        Assertions.assertEquals(taskId, inMemoryTaskManager.getTaskById(taskId).get().getId());
-        List<Task> called = List.of(Objects.requireNonNull(inMemoryTaskManager.getTaskById(taskId).orElse(null)),
-                Objects.requireNonNull(inMemoryTaskManager.getEpicById(existingEpicId).orElse(null)),
-                Objects.requireNonNull(inMemoryTaskManager.getSubtaskById(existingFirstSubId).orElse(null)),
-                Objects.requireNonNull(inMemoryTaskManager.getSubtaskById(existingSecondSubId).orElse(null)));
+                LocalDateTime.of(2024, 2, 20, 2, 0)));
+        // task created and can be retrieved via get
+        Optional<Task> taskById = inMemoryTaskManager.getTaskById(taskId);
+        Assertions.assertTrue(taskById.isPresent());
+        Optional<Epic> optionalEpic = inMemoryTaskManager.getEpicById(existingEpicId);
+        Assertions.assertTrue(optionalEpic.isPresent());
+        Optional<Subtask> subtaskById1 = inMemoryTaskManager.getSubtaskById(existingFirstSubId);
+        Assertions.assertTrue(subtaskById1.isPresent());
+        Optional<Subtask> subtaskById2 = inMemoryTaskManager.getSubtaskById(existingSecondSubId);
+        Assertions.assertTrue(subtaskById2.isPresent());
+        List<Task> called = List.of(taskById.get(),
+                optionalEpic.get(),
+                subtaskById1.get(),
+                subtaskById2.get());
         List<? extends Task> historyList = inMemoryTaskManager.getHistory();
         //called tasks are added to history and put in the order they were called in
-        for (int i = 1; i < called.size(); i++) {
-            Assertions.assertEquals(called.get(i - 1).getId(), historyList.get(i).getId());
+        for (int i = 0; i < called.size(); i++) {
+            Assertions.assertEquals(called.get(i).getId(), historyList.get(i).getId());
+        }
+    }
+
+    @Test
+    void getPrioritizedList() throws IdGenerator.IdGeneratorOverflow {
+        String taskId = inMemoryTaskManager.generateId();
+        //without overlap
+        inMemoryTaskManager.createTask(new Task(LEVEL_1_NAMES.get(2),
+                LEVEL_1_DESCRIPTIONS.get(2),
+                taskId,
+                Duration.of(30, ChronoUnit.MINUTES),
+                LocalDateTime.of(2024, 2, 20, 2, 0)));
+        // task created and can be retrieved via get
+        Optional<Task> taskById = inMemoryTaskManager.getTaskById(taskId);
+        Assertions.assertTrue(taskById.isPresent());
+        List<Task> prioritizedList = inMemoryTaskManager.getPrioritizedTasks();
+        //at this point there should be 3 tasks and subtasks
+        Assertions.assertTrue(prioritizedList.size() > 1);
+        for (int i = prioritizedList.size() - 1; i > 0; i--) {
+            Assertions.assertTrue(
+                    prioritizedList.get(i)
+                            .getStartTime()
+                            .toEpochSecond(ZoneOffset.ofTotalSeconds(0))
+                            - prioritizedList
+                            .get(i - 1)
+                            .getStartTime()
+                            .toEpochSecond(ZoneOffset.ofTotalSeconds(0)
+                            ) > 0);
         }
     }
 }

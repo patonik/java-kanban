@@ -8,8 +8,8 @@ import org.my.util.IdGenerator;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.Year;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -19,12 +19,12 @@ public class InMemoryTaskManager implements TaskManager {
     private final Map<String, Subtask> subtasks = new HashMap<>();
     private final HistoryManager historyManager;
     private final IdGenerator idGenerator;
-    private final Map<Integer, BitSet> intervalYears = new HashMap<>();
-
+    protected ScheduleManager scheduleManager;
 
     public InMemoryTaskManager() {
         this.idGenerator = new IdGenerator();
         this.historyManager = Managers.getDefaultHistory();
+        this.scheduleManager = Managers.getScheduleManager();
     }
 
     public String generateId() throws IdGenerator.IdGeneratorOverflow {
@@ -39,12 +39,12 @@ public class InMemoryTaskManager implements TaskManager {
 
     @Override
     public List<Epic> getAllEpics() {
-        return tasks.values().stream().map(x -> (Epic) x.clone()).collect(Collectors.toList());
+        return epics.values().stream().map(x -> (Epic) x.clone()).collect(Collectors.toList());
     }
 
     @Override
     public List<Subtask> getAllSubtasks() {
-        return tasks.values().stream().map(x -> (Subtask) x.clone()).collect(Collectors.toList());
+        return subtasks.values().stream().map(x -> (Subtask) x.clone()).collect(Collectors.toList());
     }
 
     @Override
@@ -75,8 +75,13 @@ public class InMemoryTaskManager implements TaskManager {
     }
 
     public List<Task> getPrioritizedTasks() {
-        return Stream.concat(tasks.values().parallelStream(), subtasks.values().parallelStream())
-                .sorted(Comparator.comparing(Task::getStartTime)).toList();
+        Predicate<Task> nullPredicate = x -> x.getStartTime() != null;
+        return Stream.concat(
+                        tasks.values().stream().filter(nullPredicate),
+                        subtasks.values().stream().filter(nullPredicate)
+                )
+                .sorted(Comparator.comparing(Task::getStartTime))
+                .toList();
     }
 
     @Override
@@ -84,66 +89,11 @@ public class InMemoryTaskManager implements TaskManager {
         if (tasks.containsKey(task.getId())) {
             return false;
         }
-        if (!placedWithoutOverlap(task.getStartTime(), task.getEndTime())) {
+        if (!scheduleManager.placedWithoutOverlap(task.getStartTime(), task.getEndTime())) {
             return false;
         }
         Task newTask = task.clone();
         tasks.put(task.getId(), newTask);
-        return true;
-    }
-
-    private void createIntervalYear(int year) {
-        int numDays = Year.isLeap(year) ? 366 : 365;
-        BitSet interval = new BitSet(numDays * 24 * 4);
-        intervalYears.put(year, interval);
-    }
-
-    private Map<Integer, int[]> getIntervals(LocalDateTime taskStartTime, LocalDateTime taskEndTime, boolean overlapForbidden) {
-        Map<Integer, int[]> intervals = new HashMap<>();
-        int taskStartYear = taskStartTime.getYear();
-        int taskEndYear = taskEndTime.getYear();
-        int diff = taskEndYear - taskStartYear;
-        int startIndex = (taskStartTime.getDayOfYear() - 1) * 24 * 4 + taskStartTime.getHour() * 4 + taskStartTime.getMinute() / 15;
-        int endIndex = (taskEndTime.getDayOfYear() - 1) * 24 * 4 + taskStartTime.getHour() * 4 + taskStartTime.getMinute() / 15;
-        for (int i = 0; i <= diff; i++) {
-            if (!intervalYears.containsKey(taskStartYear + i)) {
-                createIntervalYear(taskStartYear + i);
-            }
-            BitSet midYear = intervalYears.get(taskStartYear + i);
-            int midStart = i == 0 ? startIndex : 0;
-            int midEnd = i == 0 ? diff == 0 ? endIndex : midYear.size() : i == diff ? endIndex : midYear.size();
-            if (!midYear.get(midStart, midEnd).isEmpty() && overlapForbidden) {
-                return null;
-            }
-            if (midYear.get(midStart, midEnd).isEmpty() && !overlapForbidden) {
-                return null;
-            }
-            intervals.put(taskStartYear + i, new int[]{midStart, midEnd});
-        }
-        return intervals;
-    }
-
-    private boolean placedWithoutOverlap(LocalDateTime taskStartTime, LocalDateTime taskEndTime) {
-        Map<Integer, int[]> intervals = getIntervals(taskStartTime, taskEndTime, true);
-        if (intervals == null) {
-            return false;
-        }
-        for (Integer i : intervals.keySet()) {
-            int[] interval = intervals.get(i);
-            intervalYears.get(i).flip(interval[0], interval[1]);
-        }
-        return true;
-    }
-
-    private boolean unsetIntervals(LocalDateTime taskStartTime, LocalDateTime taskEndTime) {
-        Map<Integer, int[]> intervals = getIntervals(taskStartTime, taskEndTime, false);
-        if (intervals == null) {
-            return false;
-        }
-        for (Integer i : intervals.keySet()) {
-            int[] interval = intervals.get(i);
-            intervalYears.get(i).flip(interval[0], interval[1]);
-        }
         return true;
     }
 
@@ -171,7 +121,7 @@ public class InMemoryTaskManager implements TaskManager {
         }
         LocalDateTime subtaskStartTime = subtask.getStartTime();
         LocalDateTime subtaskEndTime = subtask.getEndTime();
-        if (!placedWithoutOverlap(subtaskStartTime, subtaskEndTime)) {
+        if (!scheduleManager.placedWithoutOverlap(subtaskStartTime, subtaskEndTime)) {
             return false;
         }
         Subtask newSubtask = (Subtask) subtask.clone();
@@ -209,10 +159,10 @@ public class InMemoryTaskManager implements TaskManager {
     }
 
     @Override
-    public void updateTask(Task task) {
+    public boolean updateTask(Task task) {
         Task stored = tasks.get(task.getId());
         if (stored == null) {
-            return;
+            return false;
         }
         LocalDateTime taskStartTime = task.getStartTime();
         LocalDateTime taskEndTime = task.getEndTime();
@@ -221,26 +171,27 @@ public class InMemoryTaskManager implements TaskManager {
         LocalDateTime storedEndTime = task.getEndTime();
         Duration storedDuration = task.getDuration();
         if (!storedStartTime.equals(taskStartTime) || !storedDuration.equals(taskDuration)) {
-            if (!unsetIntervals(storedStartTime, storedEndTime)) {
-                return;
+            if (!scheduleManager.unsetIntervals(storedStartTime, storedEndTime)) {
+                return false;
             }
-            if (!placedWithoutOverlap(taskStartTime, taskEndTime)) {
+            if (!scheduleManager.placedWithoutOverlap(taskStartTime, taskEndTime)) {
                 //setting the previous interval back
-                if (!placedWithoutOverlap(storedStartTime, storedEndTime)) {
+                if (!scheduleManager.placedWithoutOverlap(storedStartTime, storedEndTime)) {
                     throw new RuntimeException();
                 }
-                return;
+                return false;
             }
         }
         Task newTask = task.clone();
         tasks.put(task.getId(), newTask);
+        return true;
     }
 
     @Override
-    public void updateEpic(Epic epic) {
+    public boolean updateEpic(Epic epic) {
         Epic stored = epics.get(epic.getId());
         if (stored == null) {
-            return;
+            return false;
         }
         Epic newEpic = (Epic) epic.clone();
         newEpic.setStatus(stored.getStatus());
@@ -248,21 +199,22 @@ public class InMemoryTaskManager implements TaskManager {
         newEpic.setDuration(stored.getDuration());
         newEpic.setEndTime(stored.getEndTime());
         epics.put(newEpic.getId(), newEpic);
+        return true;
     }
 
     @Override
-    public void updateSubtask(Subtask subtask) {
+    public boolean updateSubtask(Subtask subtask) {
         Subtask subStored = subtasks.get(subtask.getId());
         if (subStored == null) {
-            return;
+            return false;
         }
         Epic parent = epics.get(subtask.getEpicId());
         if (parent == null) {
-            return;
+            return false;
         }
         List<Subtask> epicSubTasks = parent.getSubtasks();
         if (!epicSubTasks.contains(subStored)) {
-            return;
+            return false;
         }
         LocalDateTime subtaskStartTime = subtask.getStartTime();
         LocalDateTime subtaskEndTime = subtask.getEndTime();
@@ -271,15 +223,15 @@ public class InMemoryTaskManager implements TaskManager {
         Duration subTaskDuration = subtask.getDuration();
         Duration storedDuration = subStored.getDuration();
         if (!storedStartTime.equals(subtaskStartTime) || !storedDuration.equals(subTaskDuration)) {
-            if (!unsetIntervals(storedStartTime, storedEndTime)) {
-                return;
+            if (!scheduleManager.unsetIntervals(storedStartTime, storedEndTime)) {
+                return false;
             }
-            if (!placedWithoutOverlap(subtaskStartTime, subtaskEndTime)) {
+            if (!scheduleManager.placedWithoutOverlap(subtaskStartTime, subtaskEndTime)) {
                 //setting the previous interval back
-                if (!placedWithoutOverlap(storedStartTime, storedEndTime)) {
+                if (!scheduleManager.placedWithoutOverlap(storedStartTime, storedEndTime)) {
                     throw new RuntimeException();
                 }
-                return;
+                return false;
             }
         }
         epicSubTasks.remove(subStored);
@@ -288,6 +240,7 @@ public class InMemoryTaskManager implements TaskManager {
         parent.defineStatus();
         parent.defineTemporalData();
         subtasks.put(subtask.getId(), newSubtask);
+        return false;
     }
 
 
@@ -297,7 +250,7 @@ public class InMemoryTaskManager implements TaskManager {
         if (stored == null) {
             return null;
         }
-        if (!unsetIntervals(stored.getStartTime(), stored.getEndTime())) {
+        if (!scheduleManager.unsetIntervals(stored.getStartTime(), stored.getEndTime())) {
             return null;
         }
         Task task = stored.clone();
@@ -314,7 +267,7 @@ public class InMemoryTaskManager implements TaskManager {
         List<Subtask> epicSubs = stored.getSubtasks();
         Epic newEpic = (Epic) stored.clone();
         List<Subtask> subsForRemoval = epicSubs.parallelStream()
-                .filter((y) -> unsetIntervals(y.getStartTime(), y.getEndTime()))
+                .filter((y) -> scheduleManager.unsetIntervals(y.getStartTime(), y.getEndTime()))
                 .peek(x -> subtasks.remove(x.getId())).toList();
         boolean allSubsCleaned = stored.getSubtasks().size() == subsForRemoval.size();
         epicSubs.removeAll(subsForRemoval);
@@ -339,7 +292,7 @@ public class InMemoryTaskManager implements TaskManager {
         if (!epicSubTasks.contains(stored)) {
             return null;
         }
-        if (!unsetIntervals(stored.getStartTime(), stored.getEndTime())) {
+        if (!scheduleManager.unsetIntervals(stored.getStartTime(), stored.getEndTime())) {
             return null;
         }
         epicSubTasks.remove(stored);
@@ -364,7 +317,7 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public boolean deleteAllTasks() {
         Set<String> keysForRemoval = tasks.values().parallelStream()
-                .filter(y -> unsetIntervals(y.getStartTime(), y.getEndTime()))
+                .filter(y -> scheduleManager.unsetIntervals(y.getStartTime(), y.getEndTime()))
                 .map(Task::getId)
                 .collect(Collectors.toSet());
         boolean allTasksCleaned = tasks.size() == keysForRemoval.size();
@@ -399,7 +352,7 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public boolean deleteAllSubTasks() {
         Set<String> keysForRemoval = subtasks.values().parallelStream()
-                .filter(y -> unsetIntervals(y.getStartTime(), y.getEndTime()))
+                .filter(y -> scheduleManager.unsetIntervals(y.getStartTime(), y.getEndTime()))
                 .peek(x -> {
                     Epic epic = epics.get(x.getEpicId());
                     List<Subtask> epicSubs = epic.getSubtasks();

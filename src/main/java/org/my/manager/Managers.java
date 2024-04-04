@@ -28,4 +28,8 @@ public class Managers {
     public static InMemoryHistoryManager getInMemoryHistoryManager() {
         return new InMemoryHistoryManager();
     }
+
+    public static ScheduleManager getScheduleManager() {
+        return new ScheduleManager();
+    }
 }
