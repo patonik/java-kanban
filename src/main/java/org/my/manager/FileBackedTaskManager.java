@@ -23,7 +23,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
     public static final String RECORD_SEPARATOR = "\u001E";
     private static final String PROP_RES = "filebackedtaskmanager.properties";
     private static final String HIDDEN_ATTRIBUTE = "dos:hidden";
-    public static final String LINE_SEPARATOR = "\r\n";
+    public static final String LINE_SEPARATOR = System.lineSeparator();
     public static final DateTimeFormatter TASK_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
     private static final FileSystem FILE_SYSTEM = FileSystems.getDefault();
     private static final String BACKUP_HEADER = new StringJoiner(RECORD_SEPARATOR)

@@ -77,9 +77,9 @@ public class InMemoryTaskManager implements TaskManager {
     public List<Task> getPrioritizedTasks() {
         Predicate<Task> nullPredicate = x -> x.getStartTime() != null;
         return Stream.concat(
-                        tasks.values().stream().filter(nullPredicate),
-                        subtasks.values().stream().filter(nullPredicate)
-                )
+                tasks.values().stream().filter(nullPredicate),
+                subtasks.values().stream().filter(nullPredicate)
+        )
                 .sorted(Comparator.comparing(Task::getStartTime))
                 .toList();
     }
@@ -237,8 +237,7 @@ public class InMemoryTaskManager implements TaskManager {
         epicSubTasks.remove(subStored);
         Subtask newSubtask = (Subtask) subtask.clone();
         epicSubTasks.add(newSubtask);
-        parent.defineStatus();
-        parent.defineTemporalData();
+        parent.resolveEpicData();
         subtasks.put(subtask.getId(), newSubtask);
         return false;
     }
@@ -268,8 +267,10 @@ public class InMemoryTaskManager implements TaskManager {
         Epic newEpic = (Epic) stored.clone();
         List<Subtask> subsForRemoval = epicSubs.parallelStream()
                 .filter((y) -> scheduleManager.unsetIntervals(y.getStartTime(), y.getEndTime()))
-                .peek(x -> subtasks.remove(x.getId())).toList();
+                .peek(x -> subtasks.remove(x.getId()))
+                .toList();
         boolean allSubsCleaned = stored.getSubtasks().size() == subsForRemoval.size();
+        // it is incorrect, you should not delete subs partially
         epicSubs.removeAll(subsForRemoval);
         if (!allSubsCleaned) {
             return null;
@@ -296,8 +297,7 @@ public class InMemoryTaskManager implements TaskManager {
             return null;
         }
         epicSubTasks.remove(stored);
-        parent.defineStatus();
-        parent.defineTemporalData();
+        parent.resolveEpicData();
         Subtask subtask = (Subtask) subtasks.get(id).clone();
         subtasks.remove(id);
         return subtask;
@@ -345,27 +345,26 @@ public class InMemoryTaskManager implements TaskManager {
     }
 
     /**
-     * Deletes all Subtasks.
+     * Deletes all Subtasks from repository and epics' lists.
      *
      * @return true if all subtasks are successfully deleted, false if some or none are deleted.
      */
     @Override
     public boolean deleteAllSubTasks() {
-        Set<String> keysForRemoval = subtasks.values().parallelStream()
+        Map<Epic, Set<Subtask>> keysForRemoval = subtasks.values().stream()
                 .filter(y -> scheduleManager.unsetIntervals(y.getStartTime(), y.getEndTime()))
-                .peek(x -> {
-                    Epic epic = epics.get(x.getEpicId());
-                    List<Subtask> epicSubs = epic.getSubtasks();
-                    epicSubs.remove(x);
-                    if (epicSubs.isEmpty()) {
-                        epic.setStatus(Status.NEW);
-                        epic.defineTemporalData();
-                    }
-                })
-                .map(Task::getId).collect(Collectors.toSet());
-        boolean allSubsCleaned = keysForRemoval.size() == subtasks.size();
-        subtasks.keySet().removeAll(keysForRemoval);
-        return allSubsCleaned;
+                .collect(Collectors.groupingBy(x -> epics.get(x.getEpicId()),
+                        Collectors.mapping(x -> x, Collectors.toSet())));
+        boolean allEpicsCleaned = keysForRemoval.keySet().parallelStream()
+                .reduce(true, (x, y) -> {
+                    Set<Subtask> subsToRemove = keysForRemoval.get(y);
+                    List<Subtask> epicSubs = y.getSubtasks();
+                    epicSubs.removeAll(subsToRemove);
+                    y.resolveEpicData();
+                    subtasks.values().removeAll(subsToRemove);
+                    return x && epicSubs.isEmpty();
+                }, (x, y) -> x && y);
+        return allEpicsCleaned && subtasks.isEmpty();
     }
 
     @Override
