@@ -4,12 +4,8 @@ import org.my.task.Task;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.time.Year;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 public class Scheduler implements Serializable {
     // amount of minutes in a window within an hour
