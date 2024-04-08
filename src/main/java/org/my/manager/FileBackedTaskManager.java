@@ -1,5 +1,6 @@
 package org.my.manager;
 
+import org.my.manager.scheduler.Scheduler;
 import org.my.task.Epic;
 import org.my.task.Status;
 import org.my.task.Subtask;
@@ -116,7 +117,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
                         Files.setAttribute(scheduleFile, HIDDEN_ATTRIBUTE, true);
                     }
                 } else {
-                    fileBackedTaskManager.scheduleManager = (ScheduleManager) fileBackedTaskManager.deserialize(scheduleFile);
+                    fileBackedTaskManager.scheduler = (Scheduler) fileBackedTaskManager.deserialize(scheduleFile);
                 }
             } catch (IOException e) {
                 throw new ManagerSaveException("file creation/load error", e);
@@ -330,7 +331,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
                 buffer.clear();
             }
             fileChannel.force(false);
-            serialize(this.scheduleFile, this.scheduleManager);
+            serialize(this.scheduleFile, this.scheduler);
         } catch (IOException e) {
             throw new ManagerSaveException();
         } finally {
@@ -398,7 +399,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
 
     @Override
     public void close() throws Exception {
-        serialize(this.scheduleFile, this.scheduleManager);
+        serialize(this.scheduleFile, this.scheduler);
         if (this.fileChannel != null && this.fileChannel.isOpen()) {
             this.fileChannel.close();
         }

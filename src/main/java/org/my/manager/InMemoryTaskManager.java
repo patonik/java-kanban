@@ -1,5 +1,6 @@
 package org.my.manager;
 
+import org.my.manager.scheduler.Scheduler;
 import org.my.task.Epic;
 import org.my.task.Status;
 import org.my.task.Subtask;
@@ -19,12 +20,12 @@ public class InMemoryTaskManager implements TaskManager {
     private final Map<String, Subtask> subtasks = new HashMap<>();
     private final HistoryManager historyManager;
     private final IdGenerator idGenerator;
-    protected ScheduleManager scheduleManager;
+    protected Scheduler scheduler;
 
     public InMemoryTaskManager() {
         this.idGenerator = new IdGenerator();
         this.historyManager = Managers.getDefaultHistory();
-        this.scheduleManager = Managers.getScheduleManager();
+        this.scheduler = Managers.getScheduleManager();
     }
 
     public String generateId() throws IdGenerator.IdGeneratorOverflow {
@@ -77,9 +78,9 @@ public class InMemoryTaskManager implements TaskManager {
     public List<Task> getPrioritizedTasks() {
         Predicate<Task> nullPredicate = x -> x.getStartTime() != null;
         return Stream.concat(
-                tasks.values().stream().filter(nullPredicate),
-                subtasks.values().stream().filter(nullPredicate)
-        )
+                        tasks.values().stream().filter(nullPredicate),
+                        subtasks.values().stream().filter(nullPredicate)
+                )
                 .sorted(Comparator.comparing(Task::getStartTime))
                 .toList();
     }
@@ -89,7 +90,7 @@ public class InMemoryTaskManager implements TaskManager {
         if (tasks.containsKey(task.getId())) {
             return false;
         }
-        if (!scheduleManager.placedWithoutOverlap(task.getStartTime(), task.getEndTime())) {
+        if (!scheduler.setInterval(task)) {
             return false;
         }
         Task newTask = task.clone();
@@ -119,9 +120,7 @@ public class InMemoryTaskManager implements TaskManager {
         if (parent == null) {
             return false;
         }
-        LocalDateTime subtaskStartTime = subtask.getStartTime();
-        LocalDateTime subtaskEndTime = subtask.getEndTime();
-        if (!scheduleManager.placedWithoutOverlap(subtaskStartTime, subtaskEndTime)) {
+        if (!scheduler.setInterval(subtask)) {
             return false;
         }
         Subtask newSubtask = (Subtask) subtask.clone();
@@ -135,7 +134,7 @@ public class InMemoryTaskManager implements TaskManager {
         }
         parent.setStatus(newStatus);
         //update epic's date and time
-        updateEpicTime(subtask, parent, subtaskStartTime, subtaskEndTime);
+        updateEpicTime(subtask, parent, subtask.getStartTime(), subtask.getEndTime());
         subs.add(newSubtask);
         return true;
     }
@@ -164,21 +163,10 @@ public class InMemoryTaskManager implements TaskManager {
         if (stored == null) {
             return false;
         }
-        LocalDateTime taskStartTime = task.getStartTime();
-        LocalDateTime taskEndTime = task.getEndTime();
-        Duration taskDuration = task.getDuration();
         LocalDateTime storedStartTime = task.getStartTime();
-        LocalDateTime storedEndTime = task.getEndTime();
         Duration storedDuration = task.getDuration();
-        if (!storedStartTime.equals(taskStartTime) || !storedDuration.equals(taskDuration)) {
-            if (!scheduleManager.unsetIntervals(storedStartTime, storedEndTime)) {
-                return false;
-            }
-            if (!scheduleManager.placedWithoutOverlap(taskStartTime, taskEndTime)) {
-                //setting the previous interval back
-                if (!scheduleManager.placedWithoutOverlap(storedStartTime, storedEndTime)) {
-                    throw new RuntimeException();
-                }
+        if (!storedStartTime.equals(task.getStartTime()) || !storedDuration.equals(task.getDuration())) {
+            if (!scheduler.updateInterval(stored, task)) {
                 return false;
             }
         }
@@ -216,21 +204,10 @@ public class InMemoryTaskManager implements TaskManager {
         if (!epicSubTasks.contains(subStored)) {
             return false;
         }
-        LocalDateTime subtaskStartTime = subtask.getStartTime();
-        LocalDateTime subtaskEndTime = subtask.getEndTime();
         LocalDateTime storedStartTime = subStored.getStartTime();
-        LocalDateTime storedEndTime = subStored.getEndTime();
-        Duration subTaskDuration = subtask.getDuration();
         Duration storedDuration = subStored.getDuration();
-        if (!storedStartTime.equals(subtaskStartTime) || !storedDuration.equals(subTaskDuration)) {
-            if (!scheduleManager.unsetIntervals(storedStartTime, storedEndTime)) {
-                return false;
-            }
-            if (!scheduleManager.placedWithoutOverlap(subtaskStartTime, subtaskEndTime)) {
-                //setting the previous interval back
-                if (!scheduleManager.placedWithoutOverlap(storedStartTime, storedEndTime)) {
-                    throw new RuntimeException();
-                }
+        if (!storedStartTime.equals(subtask.getStartTime()) || !storedDuration.equals(subtask.getDuration())) {
+            if (!scheduler.updateInterval(subStored, subtask)) {
                 return false;
             }
         }
@@ -249,7 +226,7 @@ public class InMemoryTaskManager implements TaskManager {
         if (stored == null) {
             return null;
         }
-        if (!scheduleManager.unsetIntervals(stored.getStartTime(), stored.getEndTime())) {
+        if (!scheduler.removeInterval(stored)) {
             return null;
         }
         Task task = stored.clone();
@@ -266,7 +243,7 @@ public class InMemoryTaskManager implements TaskManager {
         List<Subtask> epicSubs = stored.getSubtasks();
         Epic newEpic = (Epic) stored.clone();
         List<Subtask> subsForRemoval = epicSubs.parallelStream()
-                .filter((y) -> scheduleManager.unsetIntervals(y.getStartTime(), y.getEndTime()))
+                .filter(scheduler::removeInterval)
                 .peek(x -> subtasks.remove(x.getId()))
                 .toList();
         boolean allSubsCleaned = stored.getSubtasks().size() == subsForRemoval.size();
@@ -293,7 +270,7 @@ public class InMemoryTaskManager implements TaskManager {
         if (!epicSubTasks.contains(stored)) {
             return null;
         }
-        if (!scheduleManager.unsetIntervals(stored.getStartTime(), stored.getEndTime())) {
+        if (!scheduler.removeInterval(stored)) {
             return null;
         }
         epicSubTasks.remove(stored);
@@ -317,7 +294,7 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public boolean deleteAllTasks() {
         Set<String> keysForRemoval = tasks.values().parallelStream()
-                .filter(y -> scheduleManager.unsetIntervals(y.getStartTime(), y.getEndTime()))
+                .filter(scheduler::removeInterval)
                 .map(Task::getId)
                 .collect(Collectors.toSet());
         boolean allTasksCleaned = tasks.size() == keysForRemoval.size();
@@ -352,7 +329,7 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public boolean deleteAllSubTasks() {
         Map<Epic, Set<Subtask>> keysForRemoval = subtasks.values().stream()
-                .filter(y -> scheduleManager.unsetIntervals(y.getStartTime(), y.getEndTime()))
+                .filter(scheduler::removeInterval)
                 .collect(Collectors.groupingBy(x -> epics.get(x.getEpicId()),
                         Collectors.mapping(x -> x, Collectors.toSet())));
         boolean allEpicsCleaned = keysForRemoval.keySet().parallelStream()
