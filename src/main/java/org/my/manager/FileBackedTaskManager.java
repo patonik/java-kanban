@@ -28,13 +28,21 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
     public static final DateTimeFormatter TASK_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
     private static final FileSystem FILE_SYSTEM = FileSystems.getDefault();
     private static final String BACKUP_HEADER = new StringJoiner(RECORD_SEPARATOR)
+            //0
             .add("id")
+            //1
             .add("type")
+            //2
             .add("name")
+            //3
             .add("status")
+            //4
             .add("description")
+            //5
             .add("duration")
+            //6
             .add("start_time")
+            //7
             .add("epic" + LINE_SEPARATOR)
             .toString();
 

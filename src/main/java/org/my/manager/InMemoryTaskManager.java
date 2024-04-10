@@ -5,7 +5,6 @@ import org.my.task.Epic;
 import org.my.task.Status;
 import org.my.task.Subtask;
 import org.my.task.Task;
-import org.my.util.IdGenerator;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -19,17 +18,11 @@ public class InMemoryTaskManager implements TaskManager {
     private final Map<String, Epic> epics = new HashMap<>();
     private final Map<String, Subtask> subtasks = new HashMap<>();
     private final HistoryManager historyManager;
-    private final IdGenerator idGenerator;
     protected Scheduler scheduler;
 
     public InMemoryTaskManager() {
-        this.idGenerator = new IdGenerator();
         this.historyManager = Managers.getDefaultHistory();
         this.scheduler = Managers.getScheduleManager();
-    }
-
-    public String generateId() throws IdGenerator.IdGeneratorOverflow {
-        return idGenerator.generateId();
     }
 
 
