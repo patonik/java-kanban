@@ -4,8 +4,6 @@ import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.*;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.CoreMatchers.*;
 
 import org.my.task.Epic;
 import org.my.task.Status;
@@ -13,7 +11,9 @@ import org.my.task.Subtask;
 import org.my.task.Task;
 import org.my.util.IdGenerator;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -277,19 +277,101 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
 
     @Test
     abstract void updateTask();
-    Task changeTaskToUpdateSuccessfully(Task taskToUpdate){
+
+    void changeTaskToUpdateSuccessfully(Task taskToUpdate) {
         taskToUpdate.setStatus(Status.DONE);
         taskToUpdate.setStartTime(taskToUpdate.getStartTime().plusMinutes(15));
         taskToUpdate.setDuration(taskToUpdate.getDuration().plusMinutes(30));
-        return taskToUpdate;
     }
 
     @Test
     void updateEpic() {
+        List<Epic> allEpics = taskManager.getAllEpics();
+        assumeSetupIsCorrect(taskManager.getAllTasks(), allEpics, taskManager.getAllSubtasks());
+        //try to update inaccessible fields
+        Epic existingEpic = allEpics.getFirst();
+        changeEpicToFailUpdate(existingEpic);
+        taskManager.updateEpic(changeEpicToFailUpdate((Epic) existingEpic.clone()));
+        String id = existingEpic.getId();
+        Optional<Epic> epicById = taskManager.getEpicById(id);
+        assertTrue(epicById.isPresent());
+        assertEquals(existingEpic, epicById.get());
+        //try to update successfully
+        changeEpicToUpdate(existingEpic);
+        taskManager.updateEpic(existingEpic);
+        epicById = taskManager.getEpicById(id);
+        assertTrue(epicById.isPresent());
+        assertEquals(existingEpic, epicById.get());
+    }
+
+    Epic changeEpicToFailUpdate(Epic epicToUpdate) {
+        Status status = switch (epicToUpdate.getStatus()) {
+            case NEW -> Status.IN_PROGRESS;
+            case IN_PROGRESS, DONE -> Status.NEW;
+        };
+        epicToUpdate.setStatus(status);
+        epicToUpdate.setStartTime(epicToUpdate.getStartTime().plusMinutes(15));
+        epicToUpdate.setDuration(epicToUpdate.getDuration().plusMinutes(30));
+        return epicToUpdate;
+    }
+
+    void changeEpicToUpdate(Epic epicToUpdate) {
+        epicToUpdate.setTitle("changeEpicToUpdate modified title");
+        epicToUpdate.setDescription("changeEpicToUpdate modified description");
     }
 
     @Test
     void updateSubtask() {
+        //changing first sub
+        List<Subtask> allSubtasks = taskManager.getAllSubtasks();
+        assumeSetupIsCorrect(taskManager.getAllTasks(), taskManager.getAllEpics(), allSubtasks);
+        Subtask existingSub = allSubtasks.getFirst();
+        changeSubToUpdate(existingSub);
+        taskManager.updateSubtask(existingSub);
+        assertSubAndEpicUpdated(existingSub);
+        existingSub = allSubtasks.getLast();
+        changeSubToUpdate(existingSub);
+        assertSubAndEpicUpdated(existingSub);
+    }
+
+    private void assertSubAndEpicUpdated(Subtask existingSub) {
+        String id = existingSub.getId();
+        Optional<Subtask> subtaskById = taskManager.getSubtaskById(id);
+        assertTrue(subtaskById.isPresent());
+        assertEquals(existingSub, subtaskById.get());
+        //subtask's epic contains new sub
+        String epicId = existingSub.getEpicId();
+        Optional<Epic> epicById = taskManager.getEpicById(epicId);
+        assertTrue(epicById.isPresent());
+        List<Subtask> epicSubs = epicById.get().getSubtasks();
+        assertTrue(epicSubs.contains(existingSub));
+        //subtask's epic status changed
+        Optional<Status> correctStatus = epicSubs.stream()
+                .map(Subtask::getStatus)
+                .reduce((x, y) -> x.equals(y) ? x : Status.IN_PROGRESS);
+        Optional<LocalDateTime> correctStartTime = epicSubs.stream().map(Subtask::getStartTime).min(LocalDateTime::compareTo);
+        Optional<LocalDateTime> correctEndTime = epicSubs.stream().map(Subtask::getEndTime).max(LocalDateTime::compareTo);
+        Duration correctDuration = Duration.ofSeconds(epicSubs.stream()
+                .map(Subtask::getDuration)
+                .mapToLong(Duration::toSeconds)
+                .sum());
+        assertEquals(correctStatus.get(), epicById.get().getStatus());
+        assertTrue(correctStartTime.isPresent());
+        assertTrue(correctEndTime.isPresent());
+        assertEquals(correctStartTime.get(), epicById.get().getStartTime());
+        assertEquals(correctEndTime.get(), epicById.get().getEndTime());
+        assertEquals(correctDuration, epicById.get().getDuration());
+    }
+
+    void changeSubToUpdate(Subtask subtask) {
+        subtask.setDescription("changeSubToUpdate modified description");
+        subtask.setTitle("changeSubToUpdate modified title");
+        subtask.setDuration(subtask.getDuration().plusMinutes(60));
+        subtask.setStartTime(subtask.getStartTime().plusDays(30));
+        subtask.setStatus(switch (subtask.getStatus()) {
+            case NEW -> Status.DONE;
+            case DONE, IN_PROGRESS -> Status.NEW;
+        });
     }
 
     @Test
@@ -297,14 +379,49 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
 
     @Test
     void deleteEpicById() {
+        List<Epic> allEpics = taskManager.getAllEpics();
+        List<Subtask> allSubtasks = taskManager.getAllSubtasks();
+        assumeSetupIsCorrect(taskManager.getAllTasks(), allEpics, allSubtasks);
+        String id = allEpics.getFirst().getId();
+        taskManager.deleteEpicById(id);
+        assertFalse(taskManager.getEpicById(id).isPresent());
+        assertFalse(taskManager.getSubtaskById(allSubtasks.getFirst().getId()).isPresent());
+        assertFalse(taskManager.getSubtaskById(allSubtasks.getLast().getId()).isPresent());
     }
 
     @Test
     void deleteSubtaskById() {
+        List<Epic> allEpics = taskManager.getAllEpics();
+        List<Subtask> allSubtasks = taskManager.getAllSubtasks();
+        assumeSetupIsCorrect(taskManager.getAllTasks(), allEpics, allSubtasks);
+        //successful deletion
+        Subtask first = allSubtasks.getFirst();
+        assertEquals(first, taskManager.deleteSubtaskById(first.getId()));
+        //epic is left after sub's deletion
+        Optional<Epic> optionalEpic = taskManager.getEpicById(first.getEpicId());
+        assertTrue(optionalEpic.isPresent());
+        //and does not contain deleted sub
+        assertFalse(optionalEpic.get().getSubtasks().contains(first));
+        //sub is no longer in repository
+        allSubtasks = taskManager.getAllSubtasks();
+        assertFalse(allSubtasks.contains(first));
     }
 
     @Test
     void getSubtasksOfEpic() {
+        List<Epic> allEpics = taskManager.getAllEpics();
+        List<Subtask> allSubtasks = taskManager.getAllSubtasks();
+        assumeSetupIsCorrect(taskManager.getAllTasks(), allEpics, allSubtasks);
+        Set<Subtask> subs = new HashSet<>(taskManager.getSubtasksOfEpic(allEpics.getFirst()));
+        assertEquals(subs, new HashSet<>(allSubtasks));
+    }
+
+    void assumeSetupIsCorrect(List<Task> allTasks, List<Epic> allEpics, List<Subtask> allSubtasks) {
+        assumeTrue(allTasks.isEmpty());
+        assumeFalse(allEpics.isEmpty());
+        assumeTrue(allEpics.size() == 1);
+        assumeFalse(allSubtasks.isEmpty());
+        assumeTrue(allSubtasks.size() == 2);
     }
 
     @Test
@@ -312,14 +429,74 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
 
     @Test
     void deleteAllEpics() {
+        taskManager.deleteAllEpics();
+        assertTrue(taskManager.getAllEpics().isEmpty());
+        assertTrue(taskManager.getAllSubtasks().isEmpty());
     }
 
     @Test
     void deleteAllSubTasks() {
+        List<Subtask> allSubtasks = taskManager.getAllSubtasks();
+        assumeSetupIsCorrect(taskManager.getAllTasks(), taskManager.getAllEpics(), allSubtasks);
+        taskManager.deleteAllSubTasks();
+        assertTrue(allSubtasks.isEmpty());
+        assertTrue(taskManager.getAllEpics().getFirst().getSubtasks().isEmpty());
     }
 
     @Test
     void getHistory() {
+        List<Epic> allEpics = taskManager.getAllEpics();
+        List<Subtask> allSubtasks = taskManager.getAllSubtasks();
+        assumeSetupIsCorrect(taskManager.getAllTasks(), allEpics, allSubtasks);
+        //without overlap
+        Task first = TASKS.getFirst();
+        assertTrue(taskManager.createTask(first));
+        // task created and can be retrieved via get
+        // 1 - > history
+        Optional<Task> taskById = taskManager.getTaskById(first.getId());
+        assertTrue(taskById.isPresent());
+        // 2 - > history
+        Optional<Epic> optionalEpic = taskManager.getEpicById(allEpics.getFirst().getId());
+        assertTrue(optionalEpic.isPresent());
+        // 3 - > history
+        Optional<Subtask> subtaskById1 = taskManager.getSubtaskById(allSubtasks.getFirst().getId());
+        assertTrue(subtaskById1.isPresent());
+        // 4 - > history
+        Optional<Subtask> subtaskById2 = taskManager.getSubtaskById(allSubtasks.getLast().getId());
+        assertTrue(subtaskById2.isPresent());
+        List<Task> called = List.of(taskById.get(),
+                optionalEpic.get(),
+                subtaskById1.get(),
+                subtaskById2.get());
+        List<? extends Task> historyList = taskManager.getHistory();
+        //called tasks are added to history and put in the order they were called in
+        for (int i = 0; i < called.size(); i++) {
+            assertEquals(called.get(i).getId(), historyList.get(i).getId());
+        }
+    }
+
+    @Test
+    void getPrioritizedList() {
+        //without overlap
+        Task first = TASKS.getFirst();
+        assertTrue(taskManager.createTask(first));
+        // task created and can be retrieved via get
+        Optional<Task> taskById = taskManager.getTaskById(first.getId());
+        assertTrue(taskById.isPresent());
+        List<? extends Task> prioritizedList = taskManager.getPrioritizedTasks();
+        //at this point there should be 3 tasks and subtasks
+        assertTrue(prioritizedList.size() > 1);
+        for (int i = prioritizedList.size() - 1; i > 0; i--) {
+            assertTrue(
+                    prioritizedList.get(i)
+                            .getStartTime()
+                            .toEpochSecond(ZoneOffset.ofTotalSeconds(0))
+                            - prioritizedList
+                            .get(i - 1)
+                            .getStartTime()
+                            .toEpochSecond(ZoneOffset.ofTotalSeconds(0)
+                            ) > 0);
+        }
     }
 
     public T getTaskManager() {

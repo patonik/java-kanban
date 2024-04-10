@@ -123,7 +123,8 @@ public class FileBackedTaskManagerTest extends TaskManagerTest<FileBackedTaskMan
         assumeTrue(taskManager.getAllTasks().isEmpty());
         taskManager.createTask(task);
         //update task successfully
-        taskManager.updateTask(changeTaskToUpdateSuccessfully(task));
+        changeTaskToUpdateSuccessfully(task);
+        taskManager.updateTask(task);
         taskManager.updateTask(task);
         String id = task.getId();
         Optional<Task> taskById = taskManager.getTaskById(id);
