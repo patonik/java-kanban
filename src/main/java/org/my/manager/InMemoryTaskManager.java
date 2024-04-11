@@ -13,6 +13,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+
 public class InMemoryTaskManager implements TaskManager {
     private final Map<String, Task> tasks = new HashMap<>();
     private final Map<String, Epic> epics = new HashMap<>();
@@ -44,7 +45,9 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public Optional<Task> getTaskById(String id) {
         Task found = tasks.get(id);
-        if (found == null) return Optional.empty();
+        if (found == null) {
+            return Optional.empty();
+        }
         Task task = found.clone();
         historyManager.addTask(task);
         return Optional.of(task);
@@ -53,7 +56,9 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public Optional<Epic> getEpicById(String id) {
         Epic found = epics.get(id);
-        if (found == null) return Optional.empty();
+        if (found == null) {
+            return Optional.empty();
+        }
         Epic epic = (Epic) found.clone();
         historyManager.addTask(epic);
         return Optional.of(epic);
@@ -62,7 +67,9 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public Optional<Subtask> getSubtaskById(String id) {
         Subtask found = subtasks.get(id);
-        if (found == null) return Optional.empty();
+        if (found == null) {
+            return Optional.empty();
+        }
         Subtask sub = (Subtask) found.clone();
         historyManager.addTask(sub);
         return Optional.of(sub);
@@ -222,6 +229,7 @@ public class InMemoryTaskManager implements TaskManager {
         if (!scheduler.removeInterval(stored)) {
             return null;
         }
+        historyManager.remove(tasks.get(id));
         Task task = stored.clone();
         tasks.remove(id);
         return task;
@@ -233,20 +241,30 @@ public class InMemoryTaskManager implements TaskManager {
         if (stored == null) {
             return null;
         }
+        Epic deletedEpic = (Epic) stored.clone();
         List<Subtask> epicSubs = stored.getSubtasks();
-        Epic newEpic = (Epic) stored.clone();
-        List<Subtask> subsForRemoval = epicSubs.parallelStream()
-                .filter(scheduler::removeInterval)
-                .peek(x -> subtasks.remove(x.getId()))
-                .toList();
-        boolean allSubsCleaned = stored.getSubtasks().size() == subsForRemoval.size();
-        // it is incorrect, you should not delete subs partially
-        epicSubs.removeAll(subsForRemoval);
-        if (!allSubsCleaned) {
-            return null;
+        if (!epicSubs.isEmpty()) {
+            Map<Boolean, List<Subtask>> subsForRemoval = epicSubs.stream()
+                    .collect(Collectors.groupingBy(scheduler::removeInterval));
+            if (subsForRemoval.containsKey(Boolean.FALSE)) {
+                if (subsForRemoval.containsKey(Boolean.TRUE)) {
+                    Optional<Boolean> restored = subsForRemoval.get(Boolean.TRUE).stream()
+                            .map(scheduler::setInterval)
+                            .reduce((x, y) -> x && y);
+                    if (restored.isEmpty() || !restored.get()) {
+                        throw new RuntimeException("could not put intervals back");
+                    }
+                }
+                return null;
+            } else {
+                subtasks.values().removeAll(subsForRemoval.get(Boolean.TRUE));
+                subsForRemoval.get(Boolean.TRUE).forEach(historyManager::remove);
+                epicSubs.removeAll(subsForRemoval.get(Boolean.TRUE));
+            }
         }
+        historyManager.remove(epics.get(id));
         epics.remove(id);
-        return newEpic;
+        return deletedEpic;
     }
 
     @Override
@@ -266,6 +284,7 @@ public class InMemoryTaskManager implements TaskManager {
         if (!scheduler.removeInterval(stored)) {
             return null;
         }
+        historyManager.remove(subtasks.get(id));
         epicSubTasks.remove(stored);
         parent.resolveEpicData();
         Subtask subtask = (Subtask) subtasks.get(id).clone();
@@ -288,6 +307,7 @@ public class InMemoryTaskManager implements TaskManager {
     public boolean deleteAllTasks() {
         Set<String> keysForRemoval = tasks.values().parallelStream()
                 .filter(scheduler::removeInterval)
+                .peek(historyManager::remove)
                 .map(Task::getId)
                 .collect(Collectors.toSet());
         boolean allTasksCleaned = tasks.size() == keysForRemoval.size();
@@ -303,6 +323,7 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public boolean deleteAllEpics() {
         if (deleteAllSubTasks()) {
+            epics.values().forEach(historyManager::remove);
             epics.clear();
             return true;
         }
@@ -321,11 +342,12 @@ public class InMemoryTaskManager implements TaskManager {
      */
     @Override
     public boolean deleteAllSubTasks() {
-        Map<Epic, Set<Subtask>> keysForRemoval = subtasks.values().stream()
+        final Map<Epic, Set<Subtask>> keysForRemoval = subtasks.values().stream()
                 .filter(scheduler::removeInterval)
+                .peek(historyManager::remove)
                 .collect(Collectors.groupingBy(x -> epics.get(x.getEpicId()),
                         Collectors.mapping(x -> x, Collectors.toSet())));
-        boolean allEpicsCleaned = keysForRemoval.keySet().parallelStream()
+        boolean allEpicsCleaned = keysForRemoval.keySet().stream()
                 .reduce(true, (x, y) -> {
                     Set<Subtask> subsToRemove = keysForRemoval.get(y);
                     List<Subtask> epicSubs = y.getSubtasks();
