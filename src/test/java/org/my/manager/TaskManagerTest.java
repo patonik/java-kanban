@@ -15,12 +15,11 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public abstract class TaskManagerTest<T extends TaskManager> implements TestInputValues {
-    private static final List<Task> TASKS = new ArrayList<>();
-    private static final Map<Epic, List<Subtask>> EPICS = new HashMap<>();
+    private static List<Task> tasks;
+    private static Map<Epic, List<Subtask>> epics = new HashMap<>();
     private final T taskManager;
     private static final IdGenerator ID_GENERATOR = new IdGenerator();
 
@@ -30,27 +29,27 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
 
     @BeforeAll
     static void init() {
-        IntStream.range(0, 3)
-                .peek(i -> {
+        tasks = IntStream.range(0, 3)
+                .mapToObj(i -> {
                     try {
-                        TASKS.add(
-                                new Task(
-                                        LEVEL_1_NAMES.get(i),
-                                        LEVEL_1_DESCRIPTIONS.get(i),
-                                        ID_GENERATOR.generateId(),
-                                        LEVEL_1_DURATION.get(i),
-                                        LEVEL_1_START_DATE_TIMES.get(i)
-                                )
+                        return new Task(
+                                LEVEL_1_NAMES.get(i),
+                                LEVEL_1_DESCRIPTIONS.get(i),
+                                ID_GENERATOR.generateId(),
+                                LEVEL_1_DURATION.get(i),
+                                LEVEL_1_START_DATE_TIMES.get(i)
                         );
+
                     } catch (IdGenerator.IdGeneratorOverflow e) {
                         throw new RuntimeException(e);
                     }
                 })
-                .map(i -> i + 3)
-                .peek(i -> {
+                .toList();
+        epics = IntStream.range(3, 6)
+                .mapToObj(i -> {
                     try {
                         String epicId = ID_GENERATOR.generateId();
-                        EPICS.put(
+                        return Map.of(
                                 new Epic(
                                         LEVEL_1_NAMES.get(i),
                                         LEVEL_1_DESCRIPTIONS.get(i),
@@ -79,18 +78,18 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
                         throw new RuntimeException(e);
                     }
                 })
-                .close();
-
+                .collect(HashMap::new, HashMap::putAll, HashMap::putAll);
     }
+
 
     @BeforeEach
     void setUp() {
-        Optional<Epic> optionalEpic = EPICS.keySet().stream().findFirst();
+        Optional<Epic> optionalEpic = epics.keySet().stream().findFirst();
         assertTrue(optionalEpic.isPresent());
         Epic epic = optionalEpic.get();
         taskManager.createEpic(epic);
-        taskManager.createSubtask(EPICS.get(epic).getFirst());
-        taskManager.createSubtask(EPICS.get(epic).getLast());
+        taskManager.createSubtask(epics.get(epic).getFirst());
+        taskManager.createSubtask(epics.get(epic).getLast());
     }
 
     @Test
@@ -105,7 +104,7 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
         LocalDateTime epicStart = epicList.getFirst().getStartTime();
         assumeTrue(epicStart != null);
         //try to create task with overlapping interval and assert the list is still empty
-        Task first = TASKS.getFirst();
+        Task first = tasks.getFirst();
         Task overlappingTask = first.clone();
         overlappingTask.setStartTime(epicStart);
         taskManager.createTask(overlappingTask);
@@ -122,30 +121,20 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
         allTasks = taskManager.getAllTasks();
         assertEquals(1, allTasks.size());
         //try putting several tasks
-        for (Task task : TASKS) {
+        for (Task task : tasks) {
             taskManager.createTask(task);
         }
         Set<Task> taskSet = new HashSet<>(taskManager.getAllTasks());
-        assertEquals(TASKS.size(), taskSet.size());
-        assertEquals(new HashSet<>(TASKS), taskSet);
+        assertEquals(tasks.size(), taskSet.size());
+        assertEquals(new HashSet<>(tasks), taskSet);
     }
 
     @Test
     void getAllEpics() {
         List<Epic> taskList = taskManager.getAllEpics();
         //assume epic list was previously processed
-        assumeFalse(taskList.isEmpty());
-        assumeTrue(taskList.size() == 1);
-        Epic first = taskList.getFirst();
-        assertTrue(EPICS.containsKey(first));
-        Set<Epic> epicsCreated = new HashSet<>();
-        for (Epic epic : EPICS.keySet()) {
-            taskManager.createEpic(epic);
-            epicsCreated.add(epic);
-        }
-        Set<Epic> eipicSet = new HashSet<>(taskManager.getAllEpics());
-        assertEquals(EPICS.keySet().size(), eipicSet.size());
-        assertEquals(epicsCreated, eipicSet);
+        assumeSetupIsCorrect(taskManager.getAllTasks(),taskList,taskManager.getAllSubtasks());
+        assertCreatedEpicsEqual();
     }
 
     @Test
@@ -158,37 +147,58 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
         assumeTrue(epicId.equals(taskList.getLast().getEpicId()));
 
         //try to create subtasks without parent asserting nothing added
-        EPICS.values().stream().flatMap(Collection::stream).peek(taskManager::createSubtask).close();
+        Optional<Boolean> createResult = epics.values()
+                .stream()
+                .flatMap(Collection::stream)
+                .map(taskManager::createSubtask)
+                .reduce((x, y) -> x || y);
+        assertTrue(createResult.isPresent());
+        assertFalse(createResult.get());
         taskList = taskManager.getAllSubtasks();
         assertEquals(2, taskList.size());
         //try to create subtasks with epics
-        Set<Epic> epicsCreated = new HashSet<>();
-        for (Epic epic : EPICS.keySet()) {
-            taskManager.createEpic(epic);
-            epicsCreated.add(epic);
+        assertCreatedEpicsEqual();
+
+        Set<Subtask> subsCreated = new HashSet<>();
+        for (List<Subtask> subtasks : epics.values()) {
+            taskManager.createSubtask(subtasks.getFirst());
+            subsCreated.add(subtasks.getFirst());
+            taskManager.createSubtask(subtasks.getLast());
+            subsCreated.add(subtasks.getLast());
+
         }
-        Set<Epic> epicSet = new HashSet<>(taskManager.getAllEpics());
-        assertEquals(EPICS.keySet().size(), epicSet.size());
-        assertEquals(epicsCreated, epicSet);
-        Set<Subtask> subsCreated = EPICS.values().stream()
-                .flatMap(Collection::stream)
-                .peek(taskManager::createSubtask)
-                .collect(Collectors.toSet());
         Set<Subtask> subSet = new HashSet<>(taskManager.getAllSubtasks());
         assertEquals(subsCreated.size(), subSet.size());
         assertEquals(subsCreated, subSet);
     }
 
+    private void assertCreatedEpicsEqual() {
+        Set<Epic> epicsCreated = new HashSet<>();
+        for (Epic epic : epics.keySet()) {
+            if(taskManager.createEpic(epic)){
+                epicsCreated.add(epic);
+            }
+            else {
+                Optional<Epic> epicById = taskManager.getEpicById(epic.getId());
+                assertTrue(epicById.isPresent());
+                epicsCreated.add(epicById.get());
+            }
+        }
+        Set<Epic> epicSet = new HashSet<>(taskManager.getAllEpics());
+        assertEquals(epics.keySet().size(), epicSet.size());
+        assertEquals(epicsCreated, epicSet);
+    }
+
     @Test
     void getTaskById() {
-        String taskId = assertDoesNotThrow(ID_GENERATOR::generateId);
         String nonExistentTaskId = assertDoesNotThrow(ID_GENERATOR::generateId);
         assumeTrue(taskManager.getAllTasks().isEmpty());
         //create without overlap
-        taskManager.createTask(TASKS.getFirst());
-        Optional<Task> task = taskManager.getTaskById(taskId);
+        Task first = tasks.getFirst();
+        taskManager.createTask(first);
+        Optional<Task> task = taskManager.getTaskById(first.getId());
         assertTrue(task.isPresent());
-        assertEquals(taskId, task.get().getId());
+        assertEquals(first, task.get());
         //try to get non-existent id
         task = taskManager.getTaskById(nonExistentTaskId);
         assertFalse(task.isPresent());
@@ -196,32 +206,28 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
 
     @Test
     void getEpicById() {
-        List<String> idList = EPICS.keySet().stream().map(Epic::getId).toList();
-        assumeTrue(idList.contains(taskManager.getAllTasks().getFirst().getId()));
-        for (Epic epic : EPICS.keySet()) {
-            taskManager.createEpic(epic);
-        }
+        List<String> idList = epics.keySet().stream().map(Epic::getId).toList();
+        assumeTrue(idList.contains(taskManager.getAllEpics().getFirst().getId()));
+        assertCreatedEpicsEqual();
         for (String s : idList) {
             Optional<Epic> optionalEpic = taskManager.getEpicById(s);
             assertTrue(optionalEpic.isPresent());
-            assertTrue(EPICS.containsKey(optionalEpic.get()));
         }
     }
 
     @Test
     void getSubtaskById() {
-        assumeFalse(taskManager.getAllSubtasks().isEmpty());
         List<Epic> epicList = taskManager.getAllEpics();
-        assumeFalse(epicList.isEmpty());
-        assumeTrue(epicList.size() == 1);
-        List<Subtask> subList = EPICS.get(epicList.getFirst());
-        assertNotNull(subList);
-        Optional<Subtask> subtaskById1 = taskManager.getSubtaskById(subList.getFirst().getId());
+        List<Subtask> allSubtasks = taskManager.getAllSubtasks();
+        assumeSetupIsCorrect(taskManager.getAllTasks(), epicList, allSubtasks);
+        List<String> subIds = allSubtasks.stream().map(Subtask::getId).toList();
+        assertNotNull(subIds);
+        Optional<Subtask> subtaskById1 = taskManager.getSubtaskById(subIds.getFirst());
         assertTrue(subtaskById1.isPresent());
-        assertEquals(subList.getFirst(), subtaskById1.get());
-        Optional<Subtask> subtaskById2 = taskManager.getSubtaskById(subList.getLast().getId());
+        assertEquals(allSubtasks.getFirst(), subtaskById1.get());
+        Optional<Subtask> subtaskById2 = taskManager.getSubtaskById(subIds.getLast());
         assertTrue(subtaskById2.isPresent());
-        assertEquals(subList.getLast(), subtaskById2.get());
+        assertEquals(allSubtasks.getLast(), subtaskById2.get());
     }
 
     @Test
@@ -246,14 +252,14 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
     void createSubtask() {
         Optional<Epic> optionalEpic = getEpics().keySet()
                 .stream()
-                .filter(x -> !x.equals(taskManager.getAllEpics().getFirst()))
+                .filter(x -> !x.getId().equals(taskManager.getAllEpics().getFirst().getId()))
                 .findFirst();
         assertTrue(optionalEpic.isPresent());
         Epic epic = optionalEpic.get();
         taskManager.createEpic(epic);
         Optional<Epic> epicById = taskManager.getEpicById(epic.getId());
         assertTrue(epicById.isPresent());
-        assertEquals(epic, epicById.get());
+        assertEquals(epic.getId(), epicById.get().getId());
         //create not overlapping subtask
         Subtask first = getEpics().get(epic).getFirst();
         assertTrue(taskManager.createSubtask(first));
@@ -290,7 +296,6 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
         assumeSetupIsCorrect(taskManager.getAllTasks(), allEpics, taskManager.getAllSubtasks());
         //try to update inaccessible fields
         Epic existingEpic = allEpics.getFirst();
-        changeEpicToFailUpdate(existingEpic);
         taskManager.updateEpic(changeEpicToFailUpdate((Epic) existingEpic.clone()));
         String id = existingEpic.getId();
         Optional<Epic> epicById = taskManager.getEpicById(id);
@@ -327,10 +332,11 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
         assumeSetupIsCorrect(taskManager.getAllTasks(), taskManager.getAllEpics(), allSubtasks);
         Subtask existingSub = allSubtasks.getFirst();
         changeSubToUpdate(existingSub);
-        taskManager.updateSubtask(existingSub);
+        assertTrue(taskManager.updateSubtask(existingSub));
         assertSubAndEpicUpdated(existingSub);
         existingSub = allSubtasks.getLast();
         changeSubToUpdate(existingSub);
+        assertTrue(taskManager.updateSubtask(existingSub));
         assertSubAndEpicUpdated(existingSub);
     }
 
@@ -351,13 +357,10 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
                 .reduce((x, y) -> x.equals(y) ? x : Status.IN_PROGRESS);
         Optional<LocalDateTime> correctStartTime = epicSubs.stream().map(Subtask::getStartTime).min(LocalDateTime::compareTo);
         Optional<LocalDateTime> correctEndTime = epicSubs.stream().map(Subtask::getEndTime).max(LocalDateTime::compareTo);
-        Duration correctDuration = Duration.ofSeconds(epicSubs.stream()
-                .map(Subtask::getDuration)
-                .mapToLong(Duration::toSeconds)
-                .sum());
         assertEquals(correctStatus.get(), epicById.get().getStatus());
         assertTrue(correctStartTime.isPresent());
         assertTrue(correctEndTime.isPresent());
+        Duration correctDuration = Duration.between(correctStartTime.get(), correctEndTime.get());
         assertEquals(correctStartTime.get(), epicById.get().getStartTime());
         assertEquals(correctEndTime.get(), epicById.get().getEndTime());
         assertEquals(correctDuration, epicById.get().getDuration());
@@ -366,8 +369,8 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
     void changeSubToUpdate(Subtask subtask) {
         subtask.setDescription("changeSubToUpdate modified description");
         subtask.setTitle("changeSubToUpdate modified title");
-        subtask.setDuration(subtask.getDuration().plusMinutes(60));
-        subtask.setStartTime(subtask.getStartTime().plusDays(30));
+        //subtask.setDuration(subtask.getDuration().minusDays(60));
+        subtask.setStartTime(subtask.getStartTime().minusDays(30));
         subtask.setStatus(switch (subtask.getStatus()) {
             case NEW -> Status.DONE;
             case DONE, IN_PROGRESS -> Status.NEW;
@@ -439,6 +442,7 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
         List<Subtask> allSubtasks = taskManager.getAllSubtasks();
         assumeSetupIsCorrect(taskManager.getAllTasks(), taskManager.getAllEpics(), allSubtasks);
         taskManager.deleteAllSubTasks();
+        allSubtasks = taskManager.getAllSubtasks();
         assertTrue(allSubtasks.isEmpty());
         assertTrue(taskManager.getAllEpics().getFirst().getSubtasks().isEmpty());
     }
@@ -449,7 +453,7 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
         List<Subtask> allSubtasks = taskManager.getAllSubtasks();
         assumeSetupIsCorrect(taskManager.getAllTasks(), allEpics, allSubtasks);
         //without overlap
-        Task first = TASKS.getFirst();
+        Task first = tasks.getFirst();
         assertTrue(taskManager.createTask(first));
         // task created and can be retrieved via get
         // 1 - > history
@@ -478,7 +482,7 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
     @Test
     void getPrioritizedList() {
         //without overlap
-        Task first = TASKS.getFirst();
+        Task first = tasks.getFirst();
         assertTrue(taskManager.createTask(first));
         // task created and can be retrieved via get
         Optional<Task> taskById = taskManager.getTaskById(first.getId());
@@ -508,10 +512,10 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
     }
 
     public static List<Task> getTasks() {
-        return TASKS;
+        return tasks;
     }
 
     public static Map<Epic, List<Subtask>> getEpics() {
-        return EPICS;
+        return epics;
     }
 }

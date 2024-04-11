@@ -29,7 +29,7 @@ public class Scheduler implements Serializable {
                 createSchedule(taskStartYear + i);
             }
             SchedulePerYear newSchedulePerYear = intervalYears.get(taskStartYear + i).clone();
-            schedules.put(i, newSchedulePerYear);
+            schedules.put(taskStartYear + i, newSchedulePerYear);
             int start;
             int end;
             if (i == 0 || i == diff) {
@@ -64,7 +64,7 @@ public class Scheduler implements Serializable {
                 createSchedule(curYear);
             }
             SchedulePerYear newSchedulePerYear = intervalYears.get(curYear).clone();
-            schedules.put(i, newSchedulePerYear);
+            schedules.put(curYear, newSchedulePerYear);
             int start;
             int end;
             if (i == 0 || i == diff) {

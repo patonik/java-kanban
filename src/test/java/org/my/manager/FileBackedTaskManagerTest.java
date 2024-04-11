@@ -5,24 +5,20 @@ import static org.junit.jupiter.api.Assumptions.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.CoreMatchers.*;
 
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.my.manager.ext.FileBackedTaskManagerResolver;
-import org.my.task.Epic;
-import org.my.task.Subtask;
 import org.my.task.Task;
-import org.my.util.IdGenerator;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.stream.IntStream;
 
 @ExtendWith(FileBackedTaskManagerResolver.class)
-public class FileBackedTaskManagerTest extends TaskManagerTest<FileBackedTaskManager> {
+public class FileBackedTaskManagerTest extends TaskManagerTest<FileBackedTaskManager> implements TestInputValues {
     private static Path saveFile;
     private static Path saveHistoryFile;
     private static Path scheduleFile;
@@ -34,7 +30,7 @@ public class FileBackedTaskManagerTest extends TaskManagerTest<FileBackedTaskMan
     @BeforeAll
     static void init() {
         Properties properties = new Properties();
-        try (FileInputStream fis = new FileInputStream("src\\main\\resources\\taskManager.properties")
+        try (FileInputStream fis = new FileInputStream("src\\main\\resources\\filebackedtaskmanager.properties")
         ) {
             properties.load(fis);
             saveFile = Paths.get(properties.getProperty("path", "dump.csv"));
@@ -43,56 +39,29 @@ public class FileBackedTaskManagerTest extends TaskManagerTest<FileBackedTaskMan
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        IntStream.range(0, 3)
-                .peek(i -> {
-                    try {
-                        getTasks().add(
-                                new Task(
-                                        LEVEL_1_NAMES.get(i),
-                                        LEVEL_1_DESCRIPTIONS.get(i),
-                                        getIdGenerator().generateId(),
-                                        LEVEL_1_DURATION.get(i),
-                                        LEVEL_1_START_DATE_TIMES.get(i)
-                                )
-                        );
-                    } catch (IdGenerator.IdGeneratorOverflow e) {
-                        throw new RuntimeException(e);
-                    }
-                })
-                .map(i -> i + 3)
-                .peek(i -> {
-                    try {
-                        String epicId = getIdGenerator().generateId();
-                        getEpics().put(
-                                new Epic(
-                                        LEVEL_1_NAMES.get(i),
-                                        LEVEL_1_DESCRIPTIONS.get(i),
-                                        epicId
-                                ),
-                                List.of(
-                                        new Subtask(
-                                                LEVEL_2_NAMES.get(i).get(0),
-                                                LEVEL_2_DESCRIPTIONS.get(i).get(0),
-                                                getIdGenerator().generateId(),
-                                                LEVEL_2_DURATION.get(i).get(0),
-                                                LEVEL_2_START_DATE_TIMES.get(i).get(0),
-                                                epicId
-                                        ),
-                                        new Subtask(
-                                                LEVEL_2_NAMES.get(i).get(1),
-                                                LEVEL_2_DESCRIPTIONS.get(i).get(1),
-                                                getIdGenerator().generateId(),
-                                                LEVEL_2_DURATION.get(i).get(1),
-                                                LEVEL_2_START_DATE_TIMES.get(i).get(1),
-                                                epicId
-                                        )
-                                )
-                        );
-                    } catch (IdGenerator.IdGeneratorOverflow e) {
-                        throw new RuntimeException(e);
-                    }
-                })
-                .close();
+        TaskManagerTest.init();
+    }
+
+    @AfterEach
+    void tearDown() {
+        try {
+            getTaskManager().close();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            if (Files.exists(saveFile)) {
+                Files.delete(saveFile);
+            }
+            if (Files.exists(saveHistoryFile)) {
+                Files.delete(saveHistoryFile);
+            }
+            if (Files.exists(scheduleFile)) {
+                Files.delete(scheduleFile);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test
@@ -118,7 +87,7 @@ public class FileBackedTaskManagerTest extends TaskManagerTest<FileBackedTaskMan
     @Test
     void updateTask() {
         //create task without overlap assuming no tasks added previously
-        Task task = getTasks().getFirst();
+        Task task = getTasks().getFirst().clone();
         FileBackedTaskManager taskManager = getTaskManager();
         assumeTrue(taskManager.getAllTasks().isEmpty());
         taskManager.createTask(task);
@@ -222,7 +191,10 @@ public class FileBackedTaskManagerTest extends TaskManagerTest<FileBackedTaskMan
         while (assertDoesNotThrow(br::ready)) {
             lines.add(assertDoesNotThrow(br::readLine));
         }
-        lines = lines.stream().filter(line -> line.contains(FileBackedTaskManager.TaskType.TASK.toString())).toList();
+        lines = lines.stream()
+                .map(line -> line.split(FileBackedTaskManager.RECORD_SEPARATOR)[1])
+                .filter(record -> record.equals(FileBackedTaskManager.TaskType.TASK.toString()))
+                .toList();
         assertTrue(lines.isEmpty());
         assertDoesNotThrow(br::close);
     }

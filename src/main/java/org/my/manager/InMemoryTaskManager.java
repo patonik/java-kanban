@@ -209,7 +209,7 @@ public class InMemoryTaskManager implements TaskManager {
         epicSubTasks.add(newSubtask);
         parent.resolveEpicData();
         subtasks.put(subtask.getId(), newSubtask);
-        return false;
+        return true;
     }
 
 

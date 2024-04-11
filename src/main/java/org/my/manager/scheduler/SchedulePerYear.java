@@ -1,7 +1,6 @@
 package org.my.manager.scheduler;
 
 import java.io.Serializable;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.time.temporal.ChronoUnit;
@@ -38,7 +37,7 @@ public class SchedulePerYear implements Cloneable, Serializable {
         if (startDateTime == null || endDateTime == null) {
             throw new IllegalArgumentException("Null values are not acceptable.");
         }
-        long duration = Duration.between(startDateTime, endDateTime).get(ChronoUnit.MINUTES);
+        long duration = startDateTime.until(endDateTime, ChronoUnit.MINUTES);
         if (duration <= 0 || duration % 15 != 0) {
             throw new IllegalArgumentException("Duration is negative or not multiple of windowInMinutes.");
         }
@@ -58,7 +57,7 @@ public class SchedulePerYear implements Cloneable, Serializable {
                     + endDateTime.getHour() * partOfHour
                     + endDateTime.getMinute() / windowInMinutes;
         } else {
-            interval[1] = scheduleSize - 1;
+            interval[1] = scheduleSize;
         }
         return interval;
     }
@@ -71,21 +70,10 @@ public class SchedulePerYear implements Cloneable, Serializable {
         return this.schedule.get(startOfInterval, endOfInterval).isEmpty();
     }
 
-    synchronized boolean allowedToReplace(int[] oldInterval, int[] newInterval) {
-        BitSet copy = this.schedule.get(0, scheduleSize);
-        if (!isSet(copy.get(oldInterval[0], oldInterval[1]))) {
-            return false;
-        }
-        copy.set(oldInterval[0], oldInterval[1], false);
-        return allowedToInsert(copy, newInterval[0], newInterval[1]);
-    }
-
-    private boolean isSet(BitSet bitSet) {
-        return bitSet.length() == bitSet.size();
-    }
-
     synchronized boolean isSet(int startOfInterval, int endOfInterval) {
-        return this.schedule.length() == scheduleSize;
+        BitSet interval = this.schedule.get(startOfInterval, endOfInterval);
+        int size = endOfInterval - startOfInterval;
+        return interval.cardinality() == size;
     }
 
     synchronized void setSchedule(int startOfInterval, int endOfInterval) {

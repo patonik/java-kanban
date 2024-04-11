@@ -37,7 +37,7 @@ class InMemoryTaskManagerTest extends TaskManagerTest<InMemoryTaskManager> imple
     @Test
     void updateTask() {
         //create not overlapping task
-        Task taskToCreate = getTasks().getFirst();
+        Task taskToCreate = getTasks().getFirst().clone();
         InMemoryTaskManager taskManager = getTaskManager();
         assertTrue(taskManager.createTask(taskToCreate));
         taskToCreate.setStatus(Status.DONE);
@@ -69,8 +69,12 @@ class InMemoryTaskManagerTest extends TaskManagerTest<InMemoryTaskManager> imple
         //create not overlapping task
         InMemoryTaskManager taskManager = getTaskManager();
         assumeTrue(taskManager.getAllTasks().isEmpty());
-        Set<Task> taskSet = getTasks().stream().peek(taskManager::createTask).collect(Collectors.toSet());
-        assertEquals(taskSet, new HashSet<>(taskManager.getAllTasks()));
+        Set<Task> taskSet = new HashSet<>(getTasks());
+        Optional<Boolean> someTasksCreated = taskSet.stream().map(taskManager::createTask).reduce((x, y) -> x || y);
+        assertTrue(someTasksCreated.isPresent());
+        assertTrue(someTasksCreated.get());
+        HashSet<Task> actual = new HashSet<>(taskManager.getAllTasks());
+        assertEquals(taskSet, actual);
         taskManager.deleteAllTasks();
         assertTrue(taskManager.getAllTasks().isEmpty());
     }

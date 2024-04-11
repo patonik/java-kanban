@@ -5,7 +5,6 @@ import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 import org.my.manager.FileBackedTaskManager;
-import org.my.manager.InMemoryTaskManager;
 import org.my.manager.Managers;
 
 public class FileBackedTaskManagerResolver implements ParameterResolver {

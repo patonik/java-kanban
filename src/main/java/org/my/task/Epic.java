@@ -53,6 +53,7 @@ public class Epic extends Task {
         this.setDuration(Duration.between(start, end));
         this.setStartTime(start);
         this.setEndTime(end);
+        this.setStatus(status);
     }
 
 
