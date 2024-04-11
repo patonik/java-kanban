@@ -5,6 +5,7 @@ import org.my.task.Subtask;
 import org.my.task.Task;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface TaskManager {
     List<Task> getAllTasks();
@@ -13,11 +14,11 @@ public interface TaskManager {
 
     List<Subtask> getAllSubtasks();
 
-    Task getTaskById(String id);
+    Optional<Task> getTaskById(String id);
 
-    Epic getEpicById(String id);
+    Optional<Epic> getEpicById(String id);
 
-    Subtask getSubtaskById(String id);
+    Optional<Subtask> getSubtaskById(String id);
 
     boolean createTask(Task task);
 
@@ -25,11 +26,11 @@ public interface TaskManager {
 
     boolean createSubtask(Subtask subtask);
 
-    void updateTask(Task task);
+    boolean updateTask(Task task);
 
-    void updateEpic(Epic epic);
+    boolean updateEpic(Epic epic);
 
-    void updateSubtask(Subtask subtask);
+    boolean updateSubtask(Subtask subtask);
 
     Task deleteTaskById(String id);
 
@@ -39,11 +40,13 @@ public interface TaskManager {
 
     List<Subtask> getSubtasksOfEpic(Epic epic);
 
-    void deleteAllTasks();
+    boolean deleteAllTasks();
 
-    void deleteAllEpics();
+    boolean deleteAllEpics();
 
-    void deleteAllSubTasks();
+    boolean deleteAllSubTasks();
 
     List<? extends Task> getHistory();
+
+    List<? extends Task> getPrioritizedTasks();
 }

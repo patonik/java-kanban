@@ -1,5 +1,8 @@
 package org.my.manager;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 public interface TestInputValues {
@@ -33,5 +36,64 @@ public interface TestInputValues {
             List.of("Get the soil ready for planting crops", "Begin cultivating and planting crops"),
             List.of("Establish watchtowers for surveillance", "Create a system to detect and alert to potential threats"),
             List.of("Locate and assess nearby groups", "Exchange goods and resources with other groups")
+    );
+    List<LocalDateTime> LEVEL_1_START_DATE_TIMES = List.of(
+            //put into tasks
+            LocalDateTime.of(2024, 2, 20, 1, 0),
+            LocalDateTime.of(2024, 2, 20, 1, 45),
+            LocalDateTime.of(2024, 2, 23, 12, 0),
+            //ignored
+            LocalDateTime.of(2024, 3, 1, 23, 0),
+            LocalDateTime.of(2025, 12, 31, 23, 45),
+            LocalDateTime.of(2026, 2, 1, 0, 0)
+    );
+    List<List<LocalDateTime>> LEVEL_2_START_DATE_TIMES = List.of(
+            // ignored
+            List.of(LocalDateTime.of(2024, 2, 20, 1, 0),
+                    LocalDateTime.of(2024, 2, 20, 1, 30)),
+            List.of(LocalDateTime.of(2024, 2, 20, 1, 45),
+                    LocalDateTime.of(2024, 2, 22, 1, 30)),
+            List.of(LocalDateTime.of(2024, 2, 23, 12, 0),
+                    LocalDateTime.of(2024, 2, 25, 1, 30)),
+            //put into epics
+            List.of(LocalDateTime.of(2024, 3, 1, 23, 0),
+                    LocalDateTime.of(2024, 8, 20, 1, 30)),
+            List.of(LocalDateTime.of(2025, 12, 31, 23, 45),
+                    LocalDateTime.of(2026, 1, 1, 0, 0)),
+            List.of(LocalDateTime.of(2026, 2, 1, 0, 0),
+                    LocalDateTime.of(2027, 1, 1, 0, 0))
+    );
+    List<Duration> LEVEL_1_DURATION = List.of(
+            Duration.between(LEVEL_1_START_DATE_TIMES.get(0),
+                    LEVEL_1_START_DATE_TIMES.get(1)),
+            Duration.between(LEVEL_1_START_DATE_TIMES.get(1),
+                    LEVEL_1_START_DATE_TIMES.get(2)),
+            Duration.between(LEVEL_1_START_DATE_TIMES.get(2),
+                    LEVEL_1_START_DATE_TIMES.get(3)),
+            Duration.between(LEVEL_1_START_DATE_TIMES.get(3),
+                    LEVEL_1_START_DATE_TIMES.get(4)),
+            Duration.between(LEVEL_1_START_DATE_TIMES.get(4),
+                    LEVEL_1_START_DATE_TIMES.get(5)),
+            Duration.of(10 * 365 * 24 * 60, ChronoUnit.MINUTES)
+    );
+    List<List<Duration>> LEVEL_2_DURATION = List.of(
+            List.of(Duration.between(LEVEL_2_START_DATE_TIMES.get(0).get(0), LEVEL_2_START_DATE_TIMES.get(0).get(1)),
+                    Duration.between(LEVEL_2_START_DATE_TIMES.get(0).get(1), LEVEL_2_START_DATE_TIMES.get(1).get(0))
+            ),
+            List.of(Duration.between(LEVEL_2_START_DATE_TIMES.get(1).get(0), LEVEL_2_START_DATE_TIMES.get(1).get(1)),
+                    Duration.between(LEVEL_2_START_DATE_TIMES.get(1).get(1), LEVEL_2_START_DATE_TIMES.get(2).get(0))
+            ),
+            List.of(Duration.between(LEVEL_2_START_DATE_TIMES.get(2).get(0), LEVEL_2_START_DATE_TIMES.get(2).get(1)),
+                    Duration.between(LEVEL_2_START_DATE_TIMES.get(2).get(1), LEVEL_2_START_DATE_TIMES.get(3).get(0))
+            ),
+            List.of(Duration.between(LEVEL_2_START_DATE_TIMES.get(3).get(0), LEVEL_2_START_DATE_TIMES.get(3).get(1)),
+                    Duration.between(LEVEL_2_START_DATE_TIMES.get(3).get(1), LEVEL_2_START_DATE_TIMES.get(4).get(0))
+            ),
+            List.of(Duration.between(LEVEL_2_START_DATE_TIMES.get(4).get(0), LEVEL_2_START_DATE_TIMES.get(4).get(1)),
+                    Duration.between(LEVEL_2_START_DATE_TIMES.get(4).get(1), LEVEL_2_START_DATE_TIMES.get(5).get(0))
+            ),
+            List.of(Duration.between(LEVEL_2_START_DATE_TIMES.get(5).get(0), LEVEL_2_START_DATE_TIMES.get(5).get(1)),
+                    LEVEL_1_DURATION.get(5).minus(Duration.between(LEVEL_2_START_DATE_TIMES.get(5).get(0), LEVEL_2_START_DATE_TIMES.get(5).get(1)))
+            )
     );
 }
