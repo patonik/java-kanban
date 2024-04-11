@@ -133,7 +133,7 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
     void getAllEpics() {
         List<Epic> taskList = taskManager.getAllEpics();
         //assume epic list was previously processed
-        assumeSetupIsCorrect(taskManager.getAllTasks(),taskList,taskManager.getAllSubtasks());
+        assumeSetupIsCorrect(taskManager.getAllTasks(), taskList, taskManager.getAllSubtasks());
         assertCreatedEpicsEqual();
     }
 
@@ -175,10 +175,9 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
     private void assertCreatedEpicsEqual() {
         Set<Epic> epicsCreated = new HashSet<>();
         for (Epic epic : epics.keySet()) {
-            if(taskManager.createEpic(epic)){
+            if (taskManager.createEpic(epic)) {
                 epicsCreated.add(epic);
-            }
-            else {
+            } else {
                 Optional<Epic> epicById = taskManager.getEpicById(epic.getId());
                 assertTrue(epicById.isPresent());
                 epicsCreated.add(epicById.get());
@@ -371,10 +370,11 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
         subtask.setTitle("changeSubToUpdate modified title");
         //subtask.setDuration(subtask.getDuration().minusDays(60));
         subtask.setStartTime(subtask.getStartTime().minusDays(30));
-        subtask.setStatus(switch (subtask.getStatus()) {
-            case NEW -> Status.DONE;
-            case DONE, IN_PROGRESS -> Status.NEW;
-        });
+        subtask.setStatus(
+                switch (subtask.getStatus()) {
+                    case NEW -> Status.DONE;
+                    case DONE, IN_PROGRESS -> Status.NEW;
+                });
     }
 
     @Test
