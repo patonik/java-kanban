@@ -1,14 +1,18 @@
 package org.my.task;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class Epic extends Task {
     private List<Subtask> subtasks;
+    private LocalDateTime endTime;
 
     public Epic(String title, String description, String id) {
-        super(title, description, id);
+        super(title, description, id, null, null);
         this.subtasks = new ArrayList<>();
     }
 
@@ -16,31 +20,50 @@ public class Epic extends Task {
         return subtasks;
     }
 
-    public boolean isCompleted() {
+    public void resolveEpicData() {
+        if (subtasks.isEmpty()) {
+            this.setStatus(Status.NEW);
+            this.setDuration(null);
+            this.setEndTime(null);
+            this.setStartTime(null);
+            return;
+        }
+        Subtask sub = subtasks.getFirst();
+        if (subtasks.size() == 1) {
+            this.setStatus(sub.getStatus());
+            this.setEndTime(sub.getEndTime());
+            this.setStartTime(sub.getStartTime());
+            this.setDuration(sub.getDuration());
+            return;
+        }
+        LocalDateTime start = LocalDateTime.MAX;
+        LocalDateTime end = LocalDateTime.MIN;
+        Status status = sub.getStatus();
         for (Subtask subtask : subtasks) {
-            if (subtask.getStatus() != Status.DONE) {
-                return false;
+            if (subtask.getStartTime().isBefore(start)) {
+                start = subtask.getStartTime();
+            }
+            if (subtask.getEndTime().isAfter(end)) {
+                end = subtask.getEndTime();
+            }
+            if (!subtask.getStatus().equals(status)) {
+                status = Status.IN_PROGRESS;
             }
         }
-        return true;
+        this.setDuration(Duration.between(start, end));
+        this.setStartTime(start);
+        this.setEndTime(end);
+        this.setStatus(status);
     }
 
-    public boolean isActive() {
-        for (Subtask subtask : subtasks) {
-            if (subtask.getStatus() == Status.IN_PROGRESS) {
-                return true;
-            }
-        }
-        return false;
+
+    @Override
+    public LocalDateTime getEndTime() {
+        return endTime;
     }
 
-    public boolean isNew() {
-        for (Subtask subtask : subtasks) {
-            if (subtask.getStatus() != Status.NEW) {
-                return false;
-            }
-        }
-        return true;
+    public void setEndTime(LocalDateTime endTime) {
+        this.endTime = endTime;
     }
 
     @Override
@@ -53,8 +76,7 @@ public class Epic extends Task {
     @Override
     public Task clone() {
         Epic clone = (Epic) super.clone();
-        clone.subtasks = new ArrayList<>();
-        subtasks.forEach(x -> clone.subtasks.add((Subtask) x.clone()));
+        clone.subtasks = subtasks.parallelStream().map(x -> (Subtask) x.clone()).collect(Collectors.toList());
         return clone;
     }
 
