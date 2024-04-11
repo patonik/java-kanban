@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class TaskTest implements TestInputValues {
     private static final IdGenerator ID_GENERATOR = new IdGenerator();
+
     @Test
     void construct() {
         IntStream.range(0, 3)

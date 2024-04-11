@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 import org.my.manager.TestInputValues;
 import org.my.util.IdGenerator;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
 
