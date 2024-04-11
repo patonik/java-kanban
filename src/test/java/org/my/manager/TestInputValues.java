@@ -1,7 +1,5 @@
 package org.my.manager;
 
-import org.my.task.Task;
-
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -76,7 +74,7 @@ public interface TestInputValues {
                     LEVEL_1_START_DATE_TIMES.get(4)),
             Duration.between(LEVEL_1_START_DATE_TIMES.get(4),
                     LEVEL_1_START_DATE_TIMES.get(5)),
-            Duration.of(10*365*24*60, ChronoUnit.MINUTES)
+            Duration.of(10 * 365 * 24 * 60, ChronoUnit.MINUTES)
     );
     List<List<Duration>> LEVEL_2_DURATION = List.of(
             List.of(Duration.between(LEVEL_2_START_DATE_TIMES.get(0).get(0), LEVEL_2_START_DATE_TIMES.get(0).get(1)),
