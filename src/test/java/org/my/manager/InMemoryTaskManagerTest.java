@@ -13,7 +13,6 @@ import org.my.task.Task;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @ExtendWith(InMemoryTaskManagerResolver.class)
 class InMemoryTaskManagerTest extends TaskManagerTest<InMemoryTaskManager> implements TestInputValues {
