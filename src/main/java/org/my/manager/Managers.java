@@ -1,5 +1,7 @@
 package org.my.manager;
 
+import org.my.manager.scheduler.Scheduler;
+
 public class Managers {
     private Managers() {
     }
@@ -27,5 +29,9 @@ public class Managers {
 
     public static InMemoryHistoryManager getInMemoryHistoryManager() {
         return new InMemoryHistoryManager();
+    }
+
+    public static Scheduler getScheduleManager() {
+        return new Scheduler();
     }
 }

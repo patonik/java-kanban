@@ -1,5 +1,6 @@
 package org.my.manager;
 
+import org.my.manager.scheduler.Scheduler;
 import org.my.task.Epic;
 import org.my.task.Status;
 import org.my.task.Subtask;
@@ -13,39 +14,57 @@ import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.*;
-import java.util.List;
-import java.util.Objects;
-import java.util.Properties;
-import java.util.StringJoiner;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 public class FileBackedTaskManager extends InMemoryTaskManager implements TaskManager, AutoCloseable {
-    public static final String RECORD_SEPARATOR = String.valueOf(0x001E);
+    // constants
+    public static final String RECORD_SEPARATOR = "\u001E";
     private static final String PROP_RES = "filebackedtaskmanager.properties";
-    public static final String LINE_SEPARATOR = "\r\n";
-    private final Path saveFile;
-    private final Path saveHistoryFile;
-    private static boolean canBeHidden = false;
-    private static final FileSystem fs = FileSystems.getDefault();
-    private static final String backupHeader = new StringJoiner(RECORD_SEPARATOR)
+    private static final String HIDDEN_ATTRIBUTE = "dos:hidden";
+    public static final String LINE_SEPARATOR = System.lineSeparator();
+    public static final DateTimeFormatter TASK_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    private static final FileSystem FILE_SYSTEM = FileSystems.getDefault();
+    private static final String BACKUP_HEADER = new StringJoiner(RECORD_SEPARATOR)
+            //0
             .add("id")
+            //1
             .add("type")
+            //2
             .add("name")
+            //3
             .add("status")
+            //4
             .add("description")
+            //5
+            .add("duration")
+            //6
+            .add("start_time")
+            //7
             .add("epic" + LINE_SEPARATOR)
             .toString();
 
+    //repository
+    private final Map<String, Task> tasks = new HashMap<>();
+    private final Map<String, Epic> epics = new HashMap<>();
+    private final Map<String, Subtask> subtasks = new HashMap<>();
+
+    //fields
+    private static boolean canBeHidden = false;
     private final ByteBuffer buffer = ByteBuffer.allocateDirect(4096);
     private RandomAccessFile raf;
     private FileChannel fileChannel;
     private FileChannel historyFileChannel;
-    private static FileBackedTaskManager fileBackedTaskManager;
-    private static final String HIDDEN_ATTRIBUTE = "dos:hidden";
+    private final Path scheduleFile;
 
-    private FileBackedTaskManager(Path saveFile, Path saveHistoryFile) {
-        this.saveFile = saveFile;
-        this.saveHistoryFile = saveHistoryFile;
-        if (fs.supportedFileAttributeViews().stream().anyMatch(x -> x.equals("dos"))) {
+    // instance
+    private static FileBackedTaskManager fileBackedTaskManager;
+
+    private FileBackedTaskManager(Path saveFile, Path saveHistoryFile, Path scheduleFile) {
+        this.scheduleFile = scheduleFile;
+        if (FILE_SYSTEM.supportedFileAttributeViews().stream().anyMatch(x -> x.equals("dos"))) {
             canBeHidden = true;
         }
         buffer.order(ByteOrder.nativeOrder());
@@ -55,32 +74,34 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
         Properties properties = new Properties();
         Path saveFile;
         Path saveHistoryFile;
+        Path scheduleFile;
         FileInputStream fis = null;
-        try {
-            fis = new FileInputStream(
-                    Objects.requireNonNull(
-                            FileBackedTaskManager.class
-                                    .getClassLoader()
-                                    .getResource(PROP_RES)
-                    ).getFile()
-            );
-            properties.load(fis);
-            saveFile = Paths.get(properties.getProperty("path", ""));
-            saveHistoryFile = Paths.get(properties.getProperty("historyPath", ""));
-        } catch (IOException e) {
-            throw new ManagerSaveException("properties file error");
-        } finally {
-            try {
-                if (fis != null) {
-                    fis.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
         if (fileBackedTaskManager == null) {
             try {
-                fileBackedTaskManager = new FileBackedTaskManager(saveFile, saveHistoryFile);
+                fis = new FileInputStream(
+                        Objects.requireNonNull(
+                                FileBackedTaskManager.class
+                                        .getClassLoader()
+                                        .getResource(PROP_RES)
+                        ).getFile()
+                );
+                properties.load(fis);
+                saveFile = Paths.get(properties.getProperty("path", "dump.csv"));
+                saveHistoryFile = Paths.get(properties.getProperty("historyPath", "history.csv"));
+                scheduleFile = Paths.get(properties.getProperty("schedulePath", "schedule.dat"));
+            } catch (IOException e) {
+                throw new ManagerSaveException("properties file error");
+            } finally {
+                try {
+                    if (fis != null) {
+                        fis.close();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            try {
+                fileBackedTaskManager = new FileBackedTaskManager(saveFile, saveHistoryFile, scheduleFile);
                 if (Files.notExists(saveFile)) {
                     Files.createFile(saveFile);
                     if (canBeHidden) {
@@ -98,30 +119,39 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
                 } else {
                     fileBackedTaskManager.loadFromFile(saveHistoryFile, FileType.HISTORY);
                 }
+                if (Files.notExists(scheduleFile)) {
+                    Files.createFile(scheduleFile);
+                    if (canBeHidden) {
+                        Files.setAttribute(scheduleFile, HIDDEN_ATTRIBUTE, true);
+                    }
+                } else {
+                    fileBackedTaskManager.scheduler = (Scheduler) fileBackedTaskManager.deserialize(scheduleFile);
+                }
             } catch (IOException e) {
-                throw new ManagerSaveException("file creation/load error");
+                throw new ManagerSaveException("file creation/load error", e);
+            } catch (ClassNotFoundException e) {
+                throw new ManagerSaveException("deserialization error, class not found");
+            }
+            try {
+                fileBackedTaskManager.raf = new RandomAccessFile(saveFile.toFile(), "rw");
+            } catch (FileNotFoundException e) {
+                throw new ManagerSaveException("could not open RAF");
+            }
+            try {
+                fileBackedTaskManager.fileChannel = FileChannel.open(saveFile, StandardOpenOption.APPEND);
+            } catch (IOException e) {
+                throw new ManagerSaveException("appender could not be opened");
+            }
+            try {
+                fileBackedTaskManager.historyFileChannel = FileChannel.open(saveHistoryFile, StandardOpenOption.WRITE);
+            } catch (IOException e) {
+                throw new ManagerSaveException("History file could not be opened for write");
             }
         }
-        try {
-            fileBackedTaskManager.raf = new RandomAccessFile(saveFile.toFile(), "rw");
-        } catch (FileNotFoundException e) {
-            throw new ManagerSaveException("could not open RAF");
-        }
-        try {
-            fileBackedTaskManager.fileChannel = FileChannel.open(saveFile, StandardOpenOption.APPEND);
-        } catch (IOException e) {
-            throw new ManagerSaveException("appender could not be opened");
-        }
-        try {
-            fileBackedTaskManager.historyFileChannel = FileChannel.open(saveHistoryFile, StandardOpenOption.WRITE);
-        } catch (IOException e) {
-            throw new ManagerSaveException("History file could not be opened for write");
-        }
-
         return fileBackedTaskManager;
     }
 
-    private void loadFromFile(Path saveFile, FileType fileType) throws IOException, ManagerSaveException {
+    private void loadFromFile(Path saveFile, FileType fileType) throws IOException {
         BufferedReader br = new BufferedReader(new FileReader(saveFile.toFile()));
         br.readLine();
         switch (fileType) {
@@ -140,6 +170,19 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
         br.close();
     }
 
+    private Object deserialize(Path serialFile) throws IOException, ClassNotFoundException {
+        try (ObjectInputStream objectInputStream = new ObjectInputStream(Files.newInputStream(serialFile, StandardOpenOption.READ))) {
+            return objectInputStream.readObject();
+        }
+    }
+
+    private void serialize(Path serialFile, Object object) throws IOException {
+        try (ObjectOutputStream objectOutputStream = new ObjectOutputStream(Files.newOutputStream(serialFile, StandardOpenOption.WRITE))) {
+            objectOutputStream.writeObject(object);
+            objectOutputStream.flush();
+        }
+    }
+
     private void saveLine(Task task) throws ManagerSaveException {
         FileLock fileLock = null;
         try {
@@ -148,7 +191,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             }
             fileLock = fileChannel.lock();
             if (fileChannel.position() == 0) {
-                buffer.put(backupHeader.getBytes(StandardCharsets.UTF_8));
+                buffer.put(BACKUP_HEADER.getBytes(StandardCharsets.UTF_8));
                 buffer.flip();
                 fileChannel.write(buffer);
                 buffer.clear();
@@ -159,7 +202,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             buffer.clear();
             fileChannel.force(false);
         } catch (IOException e) {
-            throw new ManagerSaveException();
+            throw new ManagerSaveException(e.getMessage(), e);
         } finally {
             try {
                 if (fileLock != null) {
@@ -282,7 +325,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
         try {
             fileLock = fileChannel.lock();
             fileChannel.truncate(0);
-            buffer.put(backupHeader.getBytes(StandardCharsets.UTF_8));
+            buffer.put(BACKUP_HEADER.getBytes(StandardCharsets.UTF_8));
             buffer.flip();
             fileChannel.write(buffer);
             buffer.clear();
@@ -296,6 +339,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
                 buffer.clear();
             }
             fileChannel.force(false);
+            serialize(this.scheduleFile, this.scheduler);
         } catch (IOException e) {
             throw new ManagerSaveException();
         } finally {
@@ -324,7 +368,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             } catch (IOException e) {
                 throw new ManagerSaveException("could not truncate history file channel");
             }
-            buffer.put(backupHeader.getBytes(StandardCharsets.UTF_8));
+            buffer.put(BACKUP_HEADER.getBytes(StandardCharsets.UTF_8));
             buffer.flip();
             try {
                 historyFileChannel.write(buffer);
@@ -363,6 +407,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
 
     @Override
     public void close() throws Exception {
+        serialize(this.scheduleFile, this.scheduler);
         if (this.fileChannel != null && this.fileChannel.isOpen()) {
             this.fileChannel.close();
         }
@@ -373,6 +418,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             saveHistory();
             this.historyFileChannel.close();
         }
+        fileBackedTaskManager = null;
     }
 
     public String stringify(Task task) {
@@ -382,14 +428,20 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             case Task t -> TaskType.TASK;
             case null -> null;
         };
+        Duration taskDuration = task.getDuration();
+        String dur = taskDuration == null ? "null" : taskDuration.toString();
+        LocalDateTime taskStartTime = task.getStartTime();
+        String time = taskStartTime == null ? "null" : taskStartTime.format(TASK_TIME_FORMATTER);
         StringJoiner sj = new StringJoiner(RECORD_SEPARATOR)
-                .add(task.getId())
-                .add(type.toString())
-                .add(task.getTitle())
-                .add(task.getStatus().toString())
-                .add(task.getDescription().replaceAll(RECORD_SEPARATOR, ""));
+                .add(task.getId()) // 0
+                .add(type.toString()) // 1
+                .add(task.getTitle()) // 2
+                .add(task.getStatus().toString()) // 3
+                .add(task.getDescription().replaceAll(RECORD_SEPARATOR, "")) // 4
+                .add(dur) // 5
+                .add(time); // 6
         if (type.equals(TaskType.SUBTASK)) {
-            sj.add(((Subtask) task).getEpicId() + LINE_SEPARATOR);
+            sj.add(((Subtask) task).getEpicId() + LINE_SEPARATOR); // 7
         } else {
             sj.add(LINE_SEPARATOR);
         }
@@ -398,21 +450,25 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
 
     public void unstringify(String line) {
         String[] params = line.split(RECORD_SEPARATOR);
+        Duration duration = params[5].equals("null") ? null : Duration.parse(params[5]);
+        LocalDateTime startTime = params[6].equals("null") ? null : LocalDateTime.parse(params[6], TASK_TIME_FORMATTER);
         switch (TaskType.valueOf(params[1])) {
             case EPIC -> {
                 Epic epic = new Epic(params[2], params[4], params[0]);
                 epic.setStatus(Status.valueOf(params[3]));
-                createEpic(epic);
+                epic.setDuration(duration);
+                epic.setStartTime(startTime);
+                epics.put(epic.getId(), epic);
             }
             case SUBTASK -> {
-                Subtask subtask = new Subtask(params[2], params[4], params[0], params[5]);
+                Subtask subtask = new Subtask(params[2], params[4], params[0], duration, startTime, params[7]);
                 subtask.setStatus(Status.valueOf(params[3]));
-                createSubtask(subtask);
+                subtasks.put(subtask.getId(), subtask);
             }
             case TASK -> {
-                Task task = new Task(params[2], params[4], params[0]);
+                Task task = new Task(params[2], params[4], params[0], duration, startTime);
                 task.setStatus(Status.valueOf(params[3]));
-                createTask(task);
+                tasks.put(task.getId(), task);
             }
         }
     }
@@ -468,38 +524,50 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
     }
 
     @Override
-    public void updateTask(Task task) {
-        super.updateTask(task);
+    public boolean updateTask(Task task) {
+        if (!super.updateTask(task)) {
+            return false;
+        }
         try {
             updateLine(task);
         } catch (ManagerSaveException e) {
             e.printStackTrace();
         }
+        return true;
     }
 
     @Override
-    public void updateEpic(Epic epic) {
-        super.updateEpic(epic);
+    public boolean updateEpic(Epic epic) {
+        if (!super.updateEpic(epic)) {
+            return false;
+        }
         try {
             updateLine(epic);
         } catch (ManagerSaveException e) {
             e.printStackTrace();
         }
+        return true;
     }
 
     @Override
-    public void updateSubtask(Subtask subtask) {
-        super.updateSubtask(subtask);
+    public boolean updateSubtask(Subtask subtask) {
+        if (!super.updateSubtask(subtask)) {
+            return false;
+        }
         try {
             updateLine(subtask);
         } catch (ManagerSaveException e) {
             e.printStackTrace();
         }
+        return true;
     }
 
     @Override
     public Task deleteTaskById(String id) {
         Task deleted = super.deleteTaskById(id);
+        if (deleted == null) {
+            return null;
+        }
         try {
             removeLine(deleted);
         } catch (ManagerSaveException e) {
@@ -511,6 +579,9 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
     @Override
     public Epic deleteEpicById(String id) {
         Epic deleted = super.deleteEpicById(id);
+        if (deleted == null) {
+            return null;
+        }
         try {
             removeLine(deleted);
         } catch (ManagerSaveException e) {
@@ -522,6 +593,9 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
     @Override
     public Subtask deleteSubtaskById(String id) {
         Subtask deleted = super.deleteSubtaskById(id);
+        if (deleted == null) {
+            return null;
+        }
         try {
             removeLine(deleted);
         } catch (ManagerSaveException e) {
@@ -531,36 +605,49 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
     }
 
     @Override
-    public void deleteAllTasks() {
-        super.deleteAllTasks();
-        try {
-            save();
-            saveHistory();
-        } catch (ManagerSaveException e) {
-            e.printStackTrace();
-        }
+    public List<Subtask> getSubtasksOfEpic(Epic epic) {
+        return super.getSubtasksOfEpic(epic);
     }
 
     @Override
-    public void deleteAllEpics() {
-        super.deleteAllEpics();
+    public boolean deleteAllTasks() {
+        boolean allCleaned = super.deleteAllTasks();
         try {
             save();
             saveHistory();
         } catch (ManagerSaveException e) {
             e.printStackTrace();
         }
+        return allCleaned;
     }
 
     @Override
-    public void deleteAllSubTasks() {
-        super.deleteAllSubTasks();
+    public boolean deleteAllEpics() {
+        boolean allCleaned = super.deleteAllEpics();
         try {
             save();
             saveHistory();
         } catch (ManagerSaveException e) {
             e.printStackTrace();
         }
+        return allCleaned;
+    }
+
+    @Override
+    public boolean deleteAllSubTasks() {
+        boolean allCleaned = super.deleteAllSubTasks();
+        try {
+            save();
+            saveHistory();
+        } catch (ManagerSaveException e) {
+            e.printStackTrace();
+        }
+        return allCleaned;
+    }
+
+    @Override
+    public List<? extends Task> getHistory() {
+        return super.getHistory();
     }
 
     public enum TaskType {
