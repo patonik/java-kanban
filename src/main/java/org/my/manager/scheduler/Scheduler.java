@@ -20,6 +20,9 @@ public class Scheduler implements Serializable {
     public synchronized boolean setInterval(Task task) {
         LocalDateTime startTime = task.getStartTime();
         LocalDateTime endTme = task.getEndTime();
+        if (startTime == null || endTme == null) {
+            return true;
+        }
         int taskStartYear = startTime.getYear();
         int taskEndYear = endTme.getYear();
         int diff = taskEndYear - taskStartYear;
@@ -54,6 +57,9 @@ public class Scheduler implements Serializable {
         //try to remove
         LocalDateTime startTime = oldTask.getStartTime();
         LocalDateTime endTime = oldTask.getEndTime();
+        if (startTime == null || endTime == null) {
+            return setInterval(newTask);
+        }
         int taskStartYear = startTime.getYear();
         int taskEndYear = endTime.getYear();
         Map<Integer, SchedulePerYear> schedules = new HashMap<>();
@@ -83,35 +89,37 @@ public class Scheduler implements Serializable {
         //try to insert
         startTime = newTask.getStartTime();
         endTime = newTask.getEndTime();
-        taskStartYear = startTime.getYear();
-        taskEndYear = endTime.getYear();
-        diff = taskEndYear - taskStartYear;
-        for (int i = 0; i <= diff; i++) {
-            int curYear = taskStartYear + i;
-            if (!intervalYears.containsKey(curYear)) {
-                createSchedule(curYear);
+        if (startTime != null && endTime != null) {
+            taskStartYear = startTime.getYear();
+            taskEndYear = endTime.getYear();
+            diff = taskEndYear - taskStartYear;
+            for (int i = 0; i <= diff; i++) {
+                int curYear = taskStartYear + i;
+                if (!intervalYears.containsKey(curYear)) {
+                    createSchedule(curYear);
+                }
+                SchedulePerYear newSchedulePerYear;
+                if (!schedules.containsKey(curYear)) {
+                    newSchedulePerYear = intervalYears.get(curYear).clone();
+                    schedules.put(i, newSchedulePerYear);
+                } else {
+                    newSchedulePerYear = schedules.get(curYear);
+                }
+                int start;
+                int end;
+                if (i == 0 || i == diff) {
+                    int[] interval = newSchedulePerYear.getInterval(startTime, endTime);
+                    start = interval[0];
+                    end = interval[1];
+                } else {
+                    start = 0;
+                    end = newSchedulePerYear.getScheduleSize();
+                }
+                if (!newSchedulePerYear.allowedToInsert(start, end)) {
+                    return false;
+                }
+                newSchedulePerYear.setSchedule(start, end);
             }
-            SchedulePerYear newSchedulePerYear;
-            if (!schedules.containsKey(curYear)) {
-                newSchedulePerYear = intervalYears.get(curYear).clone();
-                schedules.put(i, newSchedulePerYear);
-            } else {
-                newSchedulePerYear = schedules.get(curYear);
-            }
-            int start;
-            int end;
-            if (i == 0 || i == diff) {
-                int[] interval = newSchedulePerYear.getInterval(startTime, endTime);
-                start = interval[0];
-                end = interval[1];
-            } else {
-                start = 0;
-                end = newSchedulePerYear.getScheduleSize();
-            }
-            if (!newSchedulePerYear.allowedToInsert(start, end)) {
-                return false;
-            }
-            newSchedulePerYear.setSchedule(start, end);
         }
         intervalYears.putAll(schedules);
         return true;
@@ -120,6 +128,9 @@ public class Scheduler implements Serializable {
     public synchronized boolean removeInterval(Task task) {
         LocalDateTime startTime = task.getStartTime();
         LocalDateTime endTime = task.getEndTime();
+        if (startTime == null || endTime == null) {
+            return true;
+        }
         int taskStartYear = startTime.getYear();
         int taskEndYear = endTime.getYear();
         Map<Integer, SchedulePerYear> schedules = new HashMap<>();
