@@ -8,7 +8,7 @@ public class Task implements Cloneable {
 
     private String title;
     private String description;
-    private final String id;
+    private String id;
     private Status status;
     private Duration duration;
     private LocalDateTime startTime;
@@ -105,4 +105,7 @@ public class Task implements Cloneable {
     }
 
 
+    public void setId(String s) {
+        this.id = s;
+    }
 }

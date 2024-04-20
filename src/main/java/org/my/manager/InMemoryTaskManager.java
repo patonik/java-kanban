@@ -5,6 +5,7 @@ import org.my.task.Epic;
 import org.my.task.Status;
 import org.my.task.Subtask;
 import org.my.task.Task;
+import org.my.util.IdGenerator;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -20,12 +21,17 @@ public class InMemoryTaskManager implements TaskManager {
     private final Map<String, Subtask> subtasks = new HashMap<>();
     private final HistoryManager historyManager;
     protected Scheduler scheduler;
+    private final IdGenerator idGenerator = new IdGenerator();
+
 
     public InMemoryTaskManager() {
         this.historyManager = Managers.getDefaultHistory();
         this.scheduler = Managers.getScheduleManager();
     }
 
+    public IdGenerator getIdGenerator() {
+        return idGenerator;
+    }
 
     @Override
     public List<Task> getAllTasks() {
@@ -87,6 +93,13 @@ public class InMemoryTaskManager implements TaskManager {
 
     @Override
     public boolean createTask(Task task) {
+        if (task.getId() == null) {
+            try {
+                task.setId(idGenerator.generateId());
+            } catch (IdGenerator.IdGeneratorOverflow e) {
+                throw new RuntimeException(e);
+            }
+        }
         if (tasks.containsKey(task.getId())) {
             return false;
         }
@@ -100,6 +113,13 @@ public class InMemoryTaskManager implements TaskManager {
 
     @Override
     public boolean createEpic(Epic epic) {
+        if (epic.getId() == null) {
+            try {
+                epic.setId(idGenerator.generateId());
+            } catch (IdGenerator.IdGeneratorOverflow e) {
+                throw new RuntimeException(e);
+            }
+        }
         if (epics.containsKey(epic.getId())) {
             return false;
         }
@@ -113,6 +133,13 @@ public class InMemoryTaskManager implements TaskManager {
 
     @Override
     public boolean createSubtask(Subtask subtask) {
+        if (subtask.getId() == null) {
+            try {
+                subtask.setId(idGenerator.generateId());
+            } catch (IdGenerator.IdGeneratorOverflow e) {
+                throw new RuntimeException(e);
+            }
+        }
         if (subtasks.containsKey(subtask.getId())) {
             return false;
         }
@@ -360,7 +387,7 @@ public class InMemoryTaskManager implements TaskManager {
     }
 
     @Override
-    public List<? extends Task> getHistory() {
+    public List<Task> getHistory() {
         return historyManager.getHistory();
     }
 

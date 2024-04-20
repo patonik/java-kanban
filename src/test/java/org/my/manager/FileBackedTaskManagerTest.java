@@ -10,6 +10,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.my.manager.ext.FileBackedTaskManagerResolver;
 import org.my.task.Task;
+import org.my.util.TaskStringifier;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -76,7 +77,7 @@ public class FileBackedTaskManagerTest extends TaskManagerTest<FileBackedTaskMan
         BufferedReader br = assertDoesNotThrow(() -> new BufferedReader(new FileReader(saveFile.toFile())));
         List<String> ids = new ArrayList<>();
         while (assertDoesNotThrow(br::ready)) {
-            ids.add(assertDoesNotThrow(br::readLine).split(FileBackedTaskManager.RECORD_SEPARATOR)[0]);
+            ids.add(assertDoesNotThrow(br::readLine).split(TaskStringifier.RECORD_SEPARATOR)[0]);
         }
         for (Task task : taskList) {
             assertTrue(ids.contains(task.getId()));
@@ -112,14 +113,14 @@ public class FileBackedTaskManagerTest extends TaskManagerTest<FileBackedTaskMan
                 .filter(line -> line.contains(id))
                 .toList();
         assertEquals(1, lines.size());
-        lines = Arrays.stream(lines.getFirst().split(FileBackedTaskManager.RECORD_SEPARATOR)).toList();
+        lines = Arrays.stream(lines.getFirst().split(TaskStringifier.RECORD_SEPARATOR)).toList();
         assertThat(lines, hasItems(
-                FileBackedTaskManager.TaskType.TASK.toString(),
+                TaskStringifier.TaskType.TASK.toString(),
                 task.getTitle(),
                 task.getStatus().toString(),
                 task.getDescription(),
                 task.getDuration().toString(),
-                task.getStartTime().format(FileBackedTaskManager.TASK_TIME_FORMATTER)
+                task.getStartTime().format(TaskStringifier.TASK_TIME_FORMATTER)
         ));
         assertDoesNotThrow(br::close);
     }
@@ -147,14 +148,14 @@ public class FileBackedTaskManagerTest extends TaskManagerTest<FileBackedTaskMan
                 .filter(line -> line.contains(first.getId()))
                 .toList();
         assertEquals(1, lines.size());
-        lines = Arrays.stream(lines.getFirst().split(FileBackedTaskManager.RECORD_SEPARATOR)).toList();
+        lines = Arrays.stream(lines.getFirst().split(TaskStringifier.RECORD_SEPARATOR)).toList();
         assertThat(lines, hasItems(
-                FileBackedTaskManager.TaskType.TASK.toString(),
+                TaskStringifier.TaskType.TASK.toString(),
                 first.getTitle(),
                 first.getStatus().toString(),
                 first.getDescription(),
                 first.getDuration().toString(),
-                first.getStartTime().format(FileBackedTaskManager.TASK_TIME_FORMATTER)
+                first.getStartTime().format(TaskStringifier.TASK_TIME_FORMATTER)
         ));
         //delete task
         taskManager.deleteTaskById(taskId);
@@ -192,8 +193,8 @@ public class FileBackedTaskManagerTest extends TaskManagerTest<FileBackedTaskMan
             lines.add(assertDoesNotThrow(br::readLine));
         }
         lines = lines.stream()
-                .map(line -> line.split(FileBackedTaskManager.RECORD_SEPARATOR)[1])
-                .filter(record -> record.equals(FileBackedTaskManager.TaskType.TASK.toString()))
+                .map(line -> line.split(TaskStringifier.RECORD_SEPARATOR)[1])
+                .filter(record -> record.equals(TaskStringifier.TaskType.TASK.toString()))
                 .toList();
         assertTrue(lines.isEmpty());
         assertDoesNotThrow(br::close);
