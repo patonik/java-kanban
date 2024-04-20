@@ -487,7 +487,7 @@ public abstract class TaskManagerTest<T extends TaskManager> implements TestInpu
         // task created and can be retrieved via get
         Optional<Task> taskById = taskManager.getTaskById(first.getId());
         assertTrue(taskById.isPresent());
-        List<? extends Task> prioritizedList = taskManager.getPrioritizedTasks();
+        List<Task> prioritizedList = taskManager.getPrioritizedTasks();
         //at this point there should be 3 tasks and subtasks
         assertTrue(prioritizedList.size() > 1);
         for (int i = prioritizedList.size() - 1; i > 0; i--) {

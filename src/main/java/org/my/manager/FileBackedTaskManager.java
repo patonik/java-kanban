@@ -2,9 +2,9 @@ package org.my.manager;
 
 import org.my.manager.scheduler.Scheduler;
 import org.my.task.Epic;
-import org.my.task.Status;
 import org.my.task.Subtask;
 import org.my.task.Task;
+import org.my.util.TaskStringifier;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -14,37 +14,12 @@ import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.*;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class FileBackedTaskManager extends InMemoryTaskManager implements TaskManager, AutoCloseable {
-    // constants
-    public static final String RECORD_SEPARATOR = "\u001E";
     private static final String PROP_RES = "filebackedtaskmanager.properties";
     private static final String HIDDEN_ATTRIBUTE = "dos:hidden";
-    public static final String LINE_SEPARATOR = System.lineSeparator();
-    public static final DateTimeFormatter TASK_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
     private static final FileSystem FILE_SYSTEM = FileSystems.getDefault();
-    private static final String BACKUP_HEADER = new StringJoiner(RECORD_SEPARATOR)
-            //0
-            .add("id")
-            //1
-            .add("type")
-            //2
-            .add("name")
-            //3
-            .add("status")
-            //4
-            .add("description")
-            //5
-            .add("duration")
-            //6
-            .add("start_time")
-            //7
-            .add("epic" + LINE_SEPARATOR)
-            .toString();
 
     //repository
     private final Map<String, Task> tasks = new HashMap<>();
@@ -54,6 +29,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
     //fields
     private static boolean canBeHidden = false;
     private final ByteBuffer buffer = ByteBuffer.allocateDirect(4096);
+    private final TaskStringifier taskStringifier = new TaskStringifier();
     private RandomAccessFile raf;
     private FileChannel fileChannel;
     private FileChannel historyFileChannel;
@@ -157,13 +133,25 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
         switch (fileType) {
             case DATA -> {
                 while (br.ready()) {
-                    unstringify(br.readLine());
+                    Task task = taskStringifier.unstringify(br.readLine());
+                    switch (task){
+                        case Epic e -> epics.put(e.getId(), e);
+                        case Subtask s-> subtasks.put(s.getId(), s);
+                        case Task t -> tasks.put(t.getId(), t);
+                    }
                 }
             }
             case HISTORY -> {
                 br.readLine();
                 while (br.ready()) {
-                    unstringifyHistory(br.readLine());
+                    String[] values = taskStringifier.unstringifyHistory(br.readLine());
+                    switch (values[0]) {
+                        case "EPIC" -> fileBackedTaskManager.getEpicById(values[1]);
+
+                        case "SUBTASK" -> fileBackedTaskManager.getSubtaskById(values[1]);
+
+                        case "TASK" -> fileBackedTaskManager.getTaskById(values[1]);
+                    }
                 }
             }
         }
@@ -191,12 +179,12 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             }
             fileLock = fileChannel.lock();
             if (fileChannel.position() == 0) {
-                buffer.put(BACKUP_HEADER.getBytes(StandardCharsets.UTF_8));
+                buffer.put(TaskStringifier.BACKUP_HEADER.getBytes(StandardCharsets.UTF_8));
                 buffer.flip();
                 fileChannel.write(buffer);
                 buffer.clear();
             }
-            buffer.put(stringify(task).getBytes(StandardCharsets.UTF_8));
+            buffer.put(taskStringifier.stringify(task).getBytes(StandardCharsets.UTF_8));
             buffer.flip();
             fileChannel.write(buffer);
             buffer.clear();
@@ -235,7 +223,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             boolean found;
             while (next < rafLength) {
                 try {
-                    found = raf.readLine().split(RECORD_SEPARATOR)[0].equals(task.getId());
+                    found = raf.readLine().split(TaskStringifier.RECORD_SEPARATOR)[0].equals(task.getId());
                     next = raf.getFilePointer();
                 } catch (IOException e) {
                     throw new ManagerSaveException("could not read RAF", e);
@@ -248,7 +236,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
                     } catch (IOException e) {
                         throw new ManagerSaveException("could not read file's tail");
                     }
-                    byte[] data = stringify(task).getBytes(StandardCharsets.UTF_8);
+                    byte[] data = taskStringifier.stringify(task).getBytes(StandardCharsets.UTF_8);
                     try {
                         raf.seek(start);
                         raf.write(data, 0, data.length);
@@ -291,7 +279,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             long next = start;
             boolean found;
             while (next < rafLength) {
-                found = raf.readLine().split(RECORD_SEPARATOR)[0].equals(task.getId());
+                found = raf.readLine().split(TaskStringifier.RECORD_SEPARATOR)[0].equals(task.getId());
                 next = raf.getFilePointer();
                 if (found) {
                     int tailSize = (int) (rafLength - next);
@@ -325,7 +313,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
         try {
             fileLock = fileChannel.lock();
             fileChannel.truncate(0);
-            buffer.put(BACKUP_HEADER.getBytes(StandardCharsets.UTF_8));
+            buffer.put(TaskStringifier.BACKUP_HEADER.getBytes(StandardCharsets.UTF_8));
             buffer.flip();
             fileChannel.write(buffer);
             buffer.clear();
@@ -333,7 +321,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             dataList.addAll(super.getAllEpics());
             dataList.addAll(super.getAllSubtasks());
             for (Task task : dataList) {
-                buffer.put(stringify(task).getBytes(StandardCharsets.UTF_8));
+                buffer.put(taskStringifier.stringify(task).getBytes(StandardCharsets.UTF_8));
                 buffer.flip();
                 fileChannel.write(buffer);
                 buffer.clear();
@@ -368,7 +356,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             } catch (IOException e) {
                 throw new ManagerSaveException("could not truncate history file channel");
             }
-            buffer.put(BACKUP_HEADER.getBytes(StandardCharsets.UTF_8));
+            buffer.put(TaskStringifier.BACKUP_HEADER.getBytes(StandardCharsets.UTF_8));
             buffer.flip();
             try {
                 historyFileChannel.write(buffer);
@@ -378,7 +366,7 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             buffer.clear();
             List<? extends Task> dataList = super.getHistory();
             for (Task task : dataList) {
-                buffer.put(stringify(task).getBytes(StandardCharsets.UTF_8));
+                buffer.put(taskStringifier.stringify(task).getBytes(StandardCharsets.UTF_8));
                 buffer.flip();
                 try {
                     historyFileChannel.write(buffer);
@@ -419,69 +407,6 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             this.historyFileChannel.close();
         }
         fileBackedTaskManager = null;
-    }
-
-    public String stringify(Task task) {
-        TaskType type = switch (task) {
-            case Subtask s -> TaskType.SUBTASK;
-            case Epic e -> TaskType.EPIC;
-            case Task t -> TaskType.TASK;
-            case null -> null;
-        };
-        Duration taskDuration = task.getDuration();
-        String dur = taskDuration == null ? "null" : taskDuration.toString();
-        LocalDateTime taskStartTime = task.getStartTime();
-        String time = taskStartTime == null ? "null" : taskStartTime.format(TASK_TIME_FORMATTER);
-        StringJoiner sj = new StringJoiner(RECORD_SEPARATOR)
-                .add(task.getId()) // 0
-                .add(type.toString()) // 1
-                .add(task.getTitle()) // 2
-                .add(task.getStatus().toString()) // 3
-                .add(task.getDescription().replaceAll(RECORD_SEPARATOR, "")) // 4
-                .add(dur) // 5
-                .add(time); // 6
-        if (type.equals(TaskType.SUBTASK)) {
-            sj.add(((Subtask) task).getEpicId() + LINE_SEPARATOR); // 7
-        } else {
-            sj.add(LINE_SEPARATOR);
-        }
-        return sj.toString();
-    }
-
-    public void unstringify(String line) {
-        String[] params = line.split(RECORD_SEPARATOR);
-        Duration duration = params[5].equals("null") ? null : Duration.parse(params[5]);
-        LocalDateTime startTime = params[6].equals("null") ? null : LocalDateTime.parse(params[6], TASK_TIME_FORMATTER);
-        switch (TaskType.valueOf(params[1])) {
-            case EPIC -> {
-                Epic epic = new Epic(params[2], params[4], params[0]);
-                epic.setStatus(Status.valueOf(params[3]));
-                epic.setDuration(duration);
-                epic.setStartTime(startTime);
-                epics.put(epic.getId(), epic);
-            }
-            case SUBTASK -> {
-                Subtask subtask = new Subtask(params[2], params[4], params[0], duration, startTime, params[7]);
-                subtask.setStatus(Status.valueOf(params[3]));
-                subtasks.put(subtask.getId(), subtask);
-            }
-            case TASK -> {
-                Task task = new Task(params[2], params[4], params[0], duration, startTime);
-                task.setStatus(Status.valueOf(params[3]));
-                tasks.put(task.getId(), task);
-            }
-        }
-    }
-
-    public void unstringifyHistory(String line) {
-        String[] params = line.split(RECORD_SEPARATOR);
-        switch (TaskType.valueOf(params[1])) {
-            case EPIC -> getEpicById(params[0]);
-
-            case SUBTASK -> getSubtaskById(params[0]);
-
-            case TASK -> getTaskById(params[0]);
-        }
     }
 
     @Override
@@ -638,12 +563,6 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             e.printStackTrace();
         }
         return allCleaned;
-    }
-
-    public enum TaskType {
-        TASK,
-        EPIC,
-        SUBTASK
     }
 
     public enum FileType {
