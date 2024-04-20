@@ -134,9 +134,9 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
             case DATA -> {
                 while (br.ready()) {
                     Task task = taskStringifier.unstringify(br.readLine());
-                    switch (task){
+                    switch (task) {
                         case Epic e -> epics.put(e.getId(), e);
-                        case Subtask s-> subtasks.put(s.getId(), s);
+                        case Subtask s -> subtasks.put(s.getId(), s);
                         case Task t -> tasks.put(t.getId(), t);
                     }
                 }
