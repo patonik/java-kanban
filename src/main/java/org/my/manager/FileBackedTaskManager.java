@@ -530,6 +530,11 @@ public class FileBackedTaskManager extends InMemoryTaskManager implements TaskMa
     }
 
     @Override
+    public List<Subtask> getSubtasksOfEpic(Epic epic) {
+        return super.getSubtasksOfEpic(epic);
+    }
+
+    @Override
     public boolean deleteAllTasks() {
         boolean allCleaned = super.deleteAllTasks();
         try {

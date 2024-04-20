@@ -1,0 +1,7 @@
+task\Epic.class
+Main.class
+manager\Manager.class
+task\Status.class
+manager\Manager$IdGeneratorOverflow.class
+task\Subtask.class
+task\Task.class
